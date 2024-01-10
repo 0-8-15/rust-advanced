@@ -1,12 +1,30 @@
-use debug_info;
-use std::{thread::sleep, time::Duration};
-
-#[debug_info::measure_time("huch")]
-fn calc(calories_per_bite: i32, bites: i32) -> i32 {
-    println!("calculating...");
-    sleep(Duration::from_secs(1));
-    calories_per_bite * bites
+#![allow(warnings)]
+ 
+use tokio::time::{sleep, Duration};
+use futures;
+use primal::is_prime;
+ 
+#[tokio::main]
+async fn main() {
+    println!("Starte Programm");
+    perform_tasks().await;
 }
-fn main() {
-    println!("{}",calc(2,2));
+ 
+async fn c1(n: u64) -> bool {
+    let p = is_prime(n);
+    println!("{n:}: {}", p);
+    p
+}
+
+macro_rules! select_primes {
+    ($x:expr) => {{
+	let y = $x.into_iter().map(c1);
+	futures::future::join_all(y).await
+    }}
+}
+
+async fn perform_tasks() {
+    let x = vec![1999999927, 2000000872, 2000000087, 2000000084];
+    let z = select_primes!(x);
+    println!("Erstens: {}", z[0]);
 }
