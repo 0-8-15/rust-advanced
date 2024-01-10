@@ -1,20 +1,12 @@
-enum LogLevel {
-    INFO,
-    WARN,
-    ERROR,
-}
+use debug_info;
+use std::{thread::sleep, time::Duration};
 
-#[macro_export]
-macro_rules! log {
-    ($level:expr, $text:expr) => {
-	match $level {
-	    LogLevel::INFO => println!("{}", $text),
-	    LogLevel::WARN => println!("warning: {}", $text),
-	    LogLevel::ERROR => println!("ERROR {}", $text),
-	}}
+#[debug_info::log("huch")]
+fn calc(calories_per_bite: i32, bites: i32) -> i32 {
+    println!("calculating...");
+    sleep(Duration::from_secs(1));
+    calories_per_bite * bites
 }
-
 fn main() {
-    log!(LogLevel::INFO, "text");
-    log!(LogLevel::ERROR, "msg");
+    println!("{}",calc(2,2));
 }
