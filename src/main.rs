@@ -1,5 +1,6 @@
 // Importieren notwendiger Module und Typen aus der actix_web-Bibliothek.
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::guard;
 use std::sync::Mutex;
 
 // This struct represents state
@@ -8,7 +9,7 @@ struct AppStateWithCounter {
 }
 
 // Definiert eine asynchrone Handler-Funktion `hello` für GET-Anfragen an die Wurzelroute ("/").
-#[get("/")]
+#[get("/hihi")]
 async fn hello(data: web::Data<AppStateWithCounter>) -> impl Responder {
     let mut counter = data.counter.lock().unwrap(); // <- get counter's MutexGuard
     *counter += 1; // <- access counter inside MutexGuard
@@ -37,12 +38,17 @@ async fn main() -> std::io::Result<()> {
         counter: Mutex::new(0),
     });
     // Erstellt und startet einen neuen HTTP-Server.
+    // !!! Use paperclip instead.
     HttpServer::new(move || {
         // Erstellt eine neue Actix-App.
         App::new()
             .app_data(counter.clone()) // <- register the created data
             // Fügt den `hello`-Handler als Service für GET-Anfragen hinzu.
-            .service(hello)
+	    .service(
+                web::scope("/")
+                    .guard(guard::Host("127.0.0.1"))
+                    .route("", web::to(|| async { HttpResponse::Ok().body("www") })),
+            )            .service(hello)
             // Fügt den `echo`-Handler als Service für POST-Anfragen hinzu.
             .service(echo)
             // Definiert eine Route "/hey" und setzt `manual_hello` als Handler für GET-Anfragen.
