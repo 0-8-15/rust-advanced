@@ -1,29 +1,44 @@
-use std::f64::consts::E;
+use rusqlite::{Connection, Result};
 
-use actix_web::Error;
-use serde;
-#[derive(serde::Deserialize, Debug)]
-struct Pet {
+#[derive(Debug)]
+struct Person {
     id: i32,
-    name: String
+    name: String,
+    data: Option<Vec<u8>>,
 }
 
-#[tokio::main]
-async fn main() {
-    let one = get_pet(10).await;
-    println!("Status: {}", one.name);
-}
+fn main() -> Result<()> {
+    let conn = Connection::open_in_memory()?;
 
-async fn get_pet(id: u64) -> Pet {
-    let x = match reqwest::get(format!("https://petstore3.swagger.io/api/v3/pet/{id:}")).await {
-        Ok(response) => response,
-        Err(x) => panic!("Nixda")
+    conn.execute(
+        "CREATE TABLE person (
+            id    INTEGER PRIMARY KEY,
+            name  TEXT NOT NULL,
+            data  BLOB
+        )",
+        (), // empty list of parameters.
+    )?;
+    let me = Person {
+        id: 0,
+        name: "Steven".to_string(),
+        data: None,
     };
-    let y: String = match x.text().await {
-        Ok(text) => text,
-        Err(_) => panic!("Noch schlimmer")
-    };
-    println!("Status: {y:}");
-    let yj = serde_json::from_str::<Pet>(&y).unwrap();
-    yj
+    conn.execute(
+        "INSERT INTO person (name, data) VALUES (?1, ?2)",
+        (&me.name, &me.data),
+    )?;
+
+    let mut stmt = conn.prepare("SELECT id, name, data FROM person")?;
+    let person_iter = stmt.query_map([], |row| {
+        Ok(Person {
+            id: row.get("id")?,
+            name: row.get(1)?,
+            data: row.get(2)?,
+        })
+    })?;
+
+    for person in person_iter {
+        println!("Found person {:?}", person.unwrap());
+    }
+    Ok(())
 }
