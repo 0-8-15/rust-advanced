@@ -1,5 +1,5 @@
 // Importieren notwendiger Module und Typen aus der actix_web-Bibliothek.
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web::guard;
 use std::sync::Mutex;
 
@@ -25,9 +25,10 @@ async fn echo(req_body: String) -> impl Responder {
 }
 
 // Definiert eine weitere asynchrone Handler-Funktion `manual_hello`.
-async fn manual_hello() -> impl Responder {
+async fn manual_hello(req: HttpRequest) -> impl Responder {
     // Sendet eine HTTP-Antwort mit dem Statuscode 200 (OK) und dem Textkörper "Hey there!".
-    HttpResponse::Ok().body("Hey there!")
+    let id = req.match_info().query("you");
+    HttpResponse::Ok().body(format!("Hey {id:}!"))
 }
 
 // Markiert die Hauptfunktion als asynchronen Einstiegspunkt für Actix Web.
@@ -52,7 +53,7 @@ async fn main() -> std::io::Result<()> {
             // Fügt den `echo`-Handler als Service für POST-Anfragen hinzu.
             .service(echo)
             // Definiert eine Route "/hey" und setzt `manual_hello` als Handler für GET-Anfragen.
-            .route("/hey", web::get().to(manual_hello))
+            .route("/hey/{you}", web::get().to(manual_hello))
     })
     // Bindet den Server an die Adresse "127.0.0.1" auf Port 8080.
     .bind(("127.0.0.1", 8080))?
