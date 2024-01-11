@@ -1,18 +1,19 @@
 // Importieren notwendiger Module und Typen aus der actix_web-Bibliothek.
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use std::sync::Mutex;
 
 // This struct represents state
-struct AppState {
-    app_name: String,
+struct AppStateWithCounter {
+    counter: Mutex<i32>, // <- Mutex is necessary to mutate safely across threads
 }
 
 // Definiert eine asynchrone Handler-Funktion `hello` für GET-Anfragen an die Wurzelroute ("/").
 #[get("/")]
-async fn hello(data: web::Data<AppState>) -> impl Responder {
-    // Sendet eine HTTP-Antwort mit dem Statuscode 200 (OK) und dem Textkörper "Hello world!".
-    //HttpResponse::Ok().body("Hello world!")
-    let app_name = &data.app_name; // <- get app_name
-    format!("Hello {app_name}!") // <- response with app_name
+async fn hello(data: web::Data<AppStateWithCounter>) -> impl Responder {
+    let mut counter = data.counter.lock().unwrap(); // <- get counter's MutexGuard
+    *counter += 1; // <- access counter inside MutexGuard
+
+    format!("Request number: {counter}") // <- response with count
 }
 
 // Definiert eine asynchrone Handler-Funktion `echo` für POST-Anfragen an die Route "/echo".
@@ -31,13 +32,15 @@ async fn manual_hello() -> impl Responder {
 // Markiert die Hauptfunktion als asynchronen Einstiegspunkt für Actix Web.
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Note: web::Data created _outside_ HttpServer::new closure
+    let counter = web::Data::new(AppStateWithCounter {
+        counter: Mutex::new(0),
+    });
     // Erstellt und startet einen neuen HTTP-Server.
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         // Erstellt eine neue Actix-App.
         App::new()
-	    .app_data(web::Data::new(AppState {
-                app_name: String::from("Actix Web"),
-            }))
+            .app_data(counter.clone()) // <- register the created data
             // Fügt den `hello`-Handler als Service für GET-Anfragen hinzu.
             .service(hello)
             // Fügt den `echo`-Handler als Service für POST-Anfragen hinzu.
