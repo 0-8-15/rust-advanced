@@ -79,7 +79,6 @@ impl PetShop for Connection {
             Err(x) => Err(x),
         }
     }
-
     fn show_pads_with_tag(&self, tag: String) -> Result<()> {
         match self.execute(
             "INSERT INTO pet (name, data) VALUES (?1, ?2)",
