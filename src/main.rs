@@ -1,14 +1,10 @@
-use rusqlite::{Connection, Result};
 
 use std::f64::consts::E;
 
 use actix_web::Error;
 use serde;
-#[derive(serde::Deserialize, Debug)]
-struct Pet {
-    id: i32,
-    name: String
-}
+
+mod pets;
 
 #[tokio::main]
 async fn main() {
@@ -31,51 +27,6 @@ async fn get_pet(id: u64) -> Pet {
     yj
 }
 
-
-trait PetShop {
-    fn add_pet(&self, pet: Pet) -> Result<()>;
-    fn remove_pet(&self, pet: String) -> Result<()>;
-    fn show_all_pets(&self, pet: Pet) -> Result<()>;
-    fn show_pads_with_tag(&self, tag: String) -> Result<()>;
-}
-
-impl PetShop for Connection {
-    fn add_pet(&self, pet: Pet)  -> Result<()> {
-	match self.execute(
-            "INSERT INTO pet (name, data) VALUES (?1, ?2)",
-            (&pet.id, &pet.name),
-	) {
-	    Ok(_) => Ok(()),
-	    Err(x) => Err(x)
-	}
-    }
-    fn remove_pet(&self, name: String) -> Result<()> {
-	match self.execute(
-            "DELETE FROM pet WHERE name = ?1",
-            (&name),
-	) {
-	    Ok(_) => Ok(()),
-	    Err(x) => Err(x)
-	}
-    }
-    fn show_all_pets(&self, pet: Pet) -> Result<()> {
-	let mut stmt = self.prepare ("SELECT * FROM pet");
-	let all = stmt.query_map([], |row| {
-	});
-	for pet in all {
-	    println!("Pet {pet:}");
-	}
-    }
-    fn show_pads_with_tag(&self, tag: String) -> Result<()> {
-	match self.execute(
-            "INSERT INTO pet (name, data) VALUES (?1, ?2)",
-            (&pet.id, &pet.name),
-	) {
-	    Ok(_) => Ok(()),
-	    Err(x) => Err(x)
-	}
-    }
-}
 
 fn do_main() -> Result<()> {
     let conn = Connection::open_in_memory()?;
