@@ -1,3 +1,5 @@
+// ae@enqt.de, Hansen, Jonathan <jonathan.hansen@iis.fraunhofer.de>
+
 use serde_derive::{Deserialize, Serialize};
 use serde_rusqlite::*;
 
@@ -68,9 +70,7 @@ impl PetShop for Connection {
         let mut stmt = self.prepare("SELECT * FROM pet");
         match stmt {
             Ok(stmt) => {
-                let all = stmt.query_map([], |row| {
-		    Ok(Pet { id: 1 })
-		});
+                let all = stmt.query_map([], |row| Ok(from_row::<Pet>(row)));
                 for pet in all {
                     println!("Pet {pet:}");
                 }
@@ -89,3 +89,48 @@ impl PetShop for Connection {
         }
     }
 }
+
+/*
+
+use serde::Deserialize;
+
+#[derive(Deserialize, Debug)]
+pub struct Pet {
+    id: usize,
+    name: String,
+    category: String,
+    photo: Vec<u8>,
+    tags: Vec<String>,
+    status: String,
+}
+
+fn main() {
+    let json_data = r#"
+    [
+        {
+            "id": 1,
+            "name": "Lucky",
+            "category": "Hund",
+            "photo": [255, 0, 255, 127],
+            "tags": ["freundlich", "verspielt"],
+            "status": "verf�gbar"
+        },
+        {
+            "id": 2,
+            "name": "Daisy",
+            "category": "Hund",
+            "photo": [255, 0, 255, 127],
+            "tags": ["freundlich", "verspielt"],
+            "status": "verf�gbar"
+        }
+    ]
+    "#;
+
+    let pet: Vec<Pet> = match serde_json::from_str(json_data) {
+        Ok(pet) => pet,
+        Err(err) => panic!("Error: {}", err)
+    };
+    println!("Pet: {:?}", pet.get(0));
+}
+
+ */
