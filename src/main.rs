@@ -5,8 +5,10 @@ use pets::*;
 mod db;
 use db::*;
 
-fn main() {
+mod crud;
 
+fn main() {
+    crud::main()
 }
 
 #[cfg(test)]
