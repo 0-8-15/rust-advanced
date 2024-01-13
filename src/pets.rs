@@ -1,9 +1,11 @@
 // ae@enqt.de, Hansen, Jonathan <jonathan.hansen@iis.fraunhofer.de>
 
 use serde_derive::{Deserialize, Serialize};
-use serde_rusqlite::*;
 
-type PetId = usize;
+use uuid::{Uuid};
+//#[derive(Serialize, Deserialize, Debug, PartialEq)]
+//pub struct PetId (String)
+type PetId = String;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Pet {
@@ -12,18 +14,8 @@ pub struct Pet {
     pub photo: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Category {
-    pub id: i64,
-    pub name: String,
-}
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct Tag {
-    pub id: i64,
-    pub name: String,
-}
-
 pub trait PetShop {
+    fn init_db(&self) ->Result<()>;
     fn add_pet(&self, pet: Pet) -> Result<()>;
     fn del_pet(&self, pet: PetId) -> Result<()>;
     fn all_pets(&self) -> Result<Vec<Pet>>;
@@ -31,16 +23,37 @@ pub trait PetShop {
     fn show_pads_with_tag(&self, _tag: String) -> Result<()> {todo!("tags")}
 }
 
+impl Pet {
+    pub fn new() -> Self {
+	Self {
+	    id: Uuid::new_v4().to_string(),
+	    name: "".to_string(),
+	    photo: vec![],
+	}
+    }
+}
+
 /* ********************************************************************** */
 
+use serde_rusqlite::*;
 use rusqlite::{Connection, Result};
 
 impl PetShop for Connection {
+    fn init_db(&self) ->Result<()> {
+	self.execute("CREATE TABLE IF NOT EXISTS pet (
+        id    TEXT UNIQUE PRIMARY KEY,
+        name  TEXT NOT NULL,
+        photo  BLOB
+        )",
+    (), // empty list of parameters.
+    )?;
+	Ok(())
+    }
     fn add_pet(&self, pet: Pet) -> Result<()> {
+	let mut stmt = self.prepare("INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)")?;
         let params = to_params_named(&pet).unwrap();
-        println!("add_pet");
-        match self.execute(
-            "INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
+	let columns = columns_from_statement(&stmt);
+        match stmt.execute(
             params.to_slice().as_slice()) {
                 Ok(_) => Ok(()),
                 Err(x) => {println!("Err {x:?}");Err(x)}
