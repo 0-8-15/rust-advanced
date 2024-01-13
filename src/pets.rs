@@ -3,14 +3,13 @@
 use serde_derive::{Deserialize, Serialize};
 use serde_rusqlite::*;
 
+type PetId = usize;
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Pet {
-    pub id: usize,
+    pub id: PetId,
     pub name: String,
-    pub category: Category,
     pub photo: Vec<u8>,
-    pub tags: Vec<Tag>,
-    pub status: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -24,26 +23,12 @@ pub struct Tag {
     pub name: String,
 }
 
-impl Pet {
-    pub fn new(id: i64, name: String) -> Self {
-        Self {
-            id,
-            name,
-            category: Category {
-                id: 0,
-                name: String::new(),
-            },
-            tags: vec![],
-            status: "available".to_string(),
-        }
-    }
-}
-
-trait PetShop {
+pub trait PetShop {
     fn add_pet(&self, pet: Pet) -> Result<()>;
-    fn remove_pet(&self, pet: String) -> Result<()>;
-    fn show_all_pets(&self, pet: Pet) -> Result<()>;
-    fn show_pads_with_tag(&self, tag: String) -> Result<()>;
+    fn del_pet(&self, pet: PetId) -> Result<()>;
+    fn all_pets(&self) -> Result<Vec<Pet>>;
+    fn show_all_pets(&self) -> Result<()>;
+    fn show_pads_with_tag(&self, _tag: String) -> Result<()> {todo!("tags")}
 }
 
 /* ********************************************************************** */
@@ -52,42 +37,49 @@ use rusqlite::{Connection, Result};
 
 impl PetShop for Connection {
     fn add_pet(&self, pet: Pet) -> Result<()> {
+        let params = to_params_named(&pet).unwrap();
+        println!("add_pet");
         match self.execute(
-            "INSERT INTO pet (name, data) VALUES (?1, ?2)",
-            (&pet.id, &pet.name),
-        ) {
+            "INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
+            params.to_slice().as_slice()) {
+                Ok(_) => Ok(()),
+                Err(x) => {println!("Err {x:?}");Err(x)}
+            }
+    }
+    fn del_pet(&self, name: PetId) -> Result<()> {
+        match self.execute("DELETE FROM pet WHERE id = ?1", [&name]) {
             Ok(_) => Ok(()),
             Err(x) => Err(x),
         }
     }
-    fn remove_pet(&self, name: String) -> Result<()> {
-        match self.execute("DELETE FROM pet WHERE name = ?1", (&name)) {
-            Ok(_) => Ok(()),
-            Err(x) => Err(x),
-        }
-    }
-    fn show_all_pets(&self, pet: Pet) -> Result<()> {
-        let mut stmt = self.prepare("SELECT * FROM pet");
+    fn all_pets(&self) -> Result<Vec<Pet>> {
+        let stmt = self.prepare("SELECT * FROM pet");
         match stmt {
-            Ok(stmt) => {
-                let all = stmt.query_map([], |row| Ok(from_row::<Pet>(row)));
+            Ok(mut stmt) => {
+                let rows = from_rows(stmt.query([]).unwrap());
+                let mut all: Vec<Pet> = vec![];
+                for p in rows {
+                    all.push(p.unwrap())
+                }
+                Ok(all)
+            }
+            Err(x) => Err(x),
+        }
+    }
+    fn show_all_pets(&self) -> Result<()> {
+        match self.all_pets() {
+            Ok(all) => {
+                println!("N: {}", all.len());
                 for pet in all {
-                    println!("Pet {pet:}");
+                    println!("Pet {:?}", pet);
                 }
                 Ok(())
             }
             Err(x) => Err(x),
         }
     }
-    fn show_pads_with_tag(&self, tag: String) -> Result<()> {
-        match self.execute(
-            "INSERT INTO pet (name, data) VALUES (?1, ?2)",
-            (&pet.id, &pet.name),
-        ) {
-            Ok(_) => Ok(()),
-            Err(x) => Err(x),
-        }
-    }
+
+    fn show_pads_with_tag(&self, _tag: String) -> Result<()> {todo!("tags")}
 }
 
 /*
