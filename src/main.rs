@@ -1,14 +1,12 @@
 
 mod pets;
-use pets::*;
 
 mod db;
-use db::*;
 
 mod crud;
 
 fn main() {
-    crud::main()
+    crud::main();
 }
 
 #[cfg(test)]

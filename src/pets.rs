@@ -8,6 +8,7 @@ use uuid::{Uuid};
 type PetId = String;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct Pet {
     pub id: PetId,
     pub name: String,
@@ -18,6 +19,7 @@ pub trait PetShop {
     fn init_db(&self) ->Result<()>;
     fn add_pet(&self, pet: Pet) -> Result<()>;
     fn del_pet(&self, pet: PetId) -> Result<()>;
+    fn get_pet(&self, pet: String) -> Result<Pet>;
     fn all_pets(&self) -> Result<Vec<Pet>>;
     fn show_all_pets(&self) -> Result<()>;
     fn show_pads_with_tag(&self, _tag: String) -> Result<()> {todo!("tags")}
@@ -52,7 +54,7 @@ impl PetShop for Connection {
     fn add_pet(&self, pet: Pet) -> Result<()> {
 	let mut stmt = self.prepare("INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)")?;
         let params = to_params_named(&pet).unwrap();
-	let columns = columns_from_statement(&stmt);
+	// let columns = columns_from_statement(&stmt);
         match stmt.execute(
             params.to_slice().as_slice()) {
                 Ok(_) => Ok(()),
@@ -64,6 +66,11 @@ impl PetShop for Connection {
             Ok(_) => Ok(()),
             Err(x) => Err(x),
         }
+    }
+    fn get_pet(&self, id: String) -> Result<Pet> {
+	let mut stmt = self.prepare("SELECT * from pet where id=?1")?;
+	let mut rows = stmt.query_and_then([id], from_row::<Pet>).unwrap();
+	Ok(rows.next().unwrap().unwrap())
     }
     fn all_pets(&self) -> Result<Vec<Pet>> {
         let stmt = self.prepare("SELECT * FROM pet");

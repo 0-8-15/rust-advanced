@@ -4,27 +4,25 @@ use std::rc::Rc;
 
 slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
-#[derive(Clone)]
-struct Name {
-    first: String,
-    last: String,
-}
+use crate::db::{open_db};
+use crate::pets::*;
+
 pub fn main() {
     let main_window = MainWindow::new().unwrap();
 
     let prefix = Rc::new(RefCell::new(SharedString::from("")));
     let prefix_for_wrapper = prefix.clone();
 
-    let model = Rc::new(VecModel::from(vec![
-        Name { first: "Hans".to_string(), last: "Emil".to_string() },
-        Name { first: "Max".to_string(), last: "Mustermann".to_string() },
-        Name { first: "Roman".to_string(), last: "Tisch".to_string() },
-    ]));
+    let shop = open_db().unwrap(); // TODO: move to main HADLEERROR
+    let _ = shop.init_db(); // TODO: HADLEERROR
+    let all = shop.all_pets().unwrap(); // TODO: HADLEERROR
+
+    let model = Rc::new(VecModel::from(all));
 
     let filtered_model = Rc::new(
         model
             .clone()
-            .map(|n| StandardListViewItem::from(slint::format!("{}, {}", n.last, n.first)))
+            .map(|n| StandardListViewItem::from(slint::format!("{}", n.name)))
             .filter(move |e| e.text.starts_with(prefix_for_wrapper.borrow().as_str())),
     );
 
@@ -35,11 +33,13 @@ pub fn main() {
         let model = model.clone();
         main_window.on_createClicked(move || {
             let main_window = main_window_weak.unwrap();
-            let new_entry = Name {
-                first: main_window.get_name().to_string(),
-                last: main_window.get_surname().to_string(),
-            };
-            model.push(new_entry);
+            let mut new_entry = Pet::new();
+	    new_entry.name = format!("{} {}", main_window.get_name(), main_window.get_surname());
+	    let shop = open_db().unwrap(); // TODO: HADLEERROR
+	    match shop.add_pet(new_entry.clone()) {
+		Ok(_) => model.push(new_entry),
+		Err(x) => {} // TODO HANDLERROR
+	    };
         });
     }
 
@@ -50,13 +50,22 @@ pub fn main() {
         main_window.on_updateClicked(move || {
             let main_window = main_window_weak.unwrap();
 
-            let updated_entry = Name {
-                first: main_window.get_name().to_string(),
-                last: main_window.get_surname().to_string(),
-            };
+	    let shop = open_db().unwrap(); // TODO: HADLEERROR
+            let updated_entry = shop.get_pet(main_window.get_petid().to_string());
+	    match updated_entry {
+		Ok(mut updated_entry) => {
+		    updated_entry.name = format!("{}{}", main_window.get_surname().to_string(), main_window.get_surname());
+		    match shop.add_pet(updated_entry.clone()) {
+			Ok(_) => {
+			    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
+			    model.set_row_data(row, updated_entry);
+			},
+			Err(_) => {} // TODO signal error
+		    }
+		}
+		Err(_) => {} // TODO signal error
+	    };
 
-            let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-            model.set_row_data(row, updated_entry);
         });
     }
 
