@@ -68,7 +68,6 @@ impl PetShop for Connection {
         }
     }
     fn get_pet(&self, id: String) -> Option<Pet> {
-	println!("get_pet: '{id:}'");
 	let mut stmt = match self.prepare("SELECT * from pet where id=?1") {
 	    Ok(stmt) => stmt,
 	    Err(_) => return None
