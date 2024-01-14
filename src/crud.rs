@@ -49,23 +49,23 @@ pub fn main() {
         let filtered_model = filtered_model.clone();
         main_window.on_updateClicked(move || {
             let main_window = main_window_weak.unwrap();
-
-	    let shop = open_db().expect("TODO: HADLEERROR: failed to open model file");
-            let updated_entry = shop.get_pet(main_window.get_petid().to_string());
-	    match updated_entry {
-		Some(mut updated_entry) => {
-		    updated_entry.name = format!("{}{}", main_window.get_surname().to_string(), main_window.get_surname());
-		    match shop.add_pet(updated_entry.clone()) {
-			Ok(_) => {
-			    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-			    model.set_row_data(row, updated_entry);
-			},
-			Err(_) => { println!("TODO HANDLEERROR: failed to update entry {:}", updated_entry.id) }
+	    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
+	    if let Some(pet) = model.row_data(row) {
+		let shop = open_db().expect("TODO: HADLEERROR: failed to open model file");
+		let updated_entry = shop.get_pet(pet.id);
+		match updated_entry {
+		    Some(mut updated_entry) => {
+			updated_entry.name = format!("{}{}", main_window.get_name().to_string(), main_window.get_surname());
+			match shop.add_pet(updated_entry.clone()) {
+			    Ok(_) => {
+				model.set_row_data(row, updated_entry);
+			    },
+			    Err(_) => { println!("TODO HANDLEERROR: failed to update entry {:}", updated_entry.id) }
+			}
 		    }
-		}
-		None => { println!("TODO signal entry not found!") }
+		    None => { println!("TODO signal entry not found!") }
+		};
 	    };
-
         });
     }
 
