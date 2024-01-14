@@ -13,9 +13,9 @@ pub fn main() {
     let prefix = Rc::new(RefCell::new(SharedString::from("")));
     let prefix_for_wrapper = prefix.clone();
 
-    let shop = open_db().expect("TODO: move to main HADLEERROR could not create model file");
-    let _ = shop.init_db(); // TODO: HADLEERROR
-    let all = shop.all_pets().expect("TODO: HADLEERROR model initialization failed");
+    let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
+    let _ = shop.init_db(); // TODO: HANDLEERROR
+    let all = shop.all_pets().expect("TODO: HANDLEERROR model initialization failed");
 
     let model = Rc::new(VecModel::from(all));
 
@@ -35,10 +35,10 @@ pub fn main() {
             let main_window = main_window_weak.unwrap();
             let mut new_entry = Pet::new();
 	    new_entry.name = format!("{} {}", main_window.get_name(), main_window.get_surname());
-	    let shop = open_db().expect("TODO HADLEERROR model file missing");
+	    let shop = open_db().expect("TODO HANDLEERROR model file missing");
 	    match shop.add_pet(new_entry.clone()) {
 		Ok(_) => model.push(new_entry),
-		Err(x) => {println!("TODO HADLEERROR")}
+		Err(x) => {println!("TODO HANDLEERROR")}
 	    };
         });
     }
@@ -51,7 +51,7 @@ pub fn main() {
             let main_window = main_window_weak.unwrap();
 	    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
 	    if let Some(pet) = model.row_data(row) {
-		let shop = open_db().expect("TODO: HADLEERROR: failed to open model file");
+		let shop = open_db().expect("TODO: HANDLEERROR: failed to open model file");
 		let updated_entry = shop.get_pet(pet.id);
 		match updated_entry {
 		    Some(mut updated_entry) => {
