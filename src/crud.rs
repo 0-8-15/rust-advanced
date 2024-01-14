@@ -13,9 +13,9 @@ pub fn main() {
     let prefix = Rc::new(RefCell::new(SharedString::from("")));
     let prefix_for_wrapper = prefix.clone();
 
-    let shop = open_db().unwrap(); // TODO: move to main HADLEERROR
+    let shop = open_db().expect("TODO: move to main HADLEERROR could not create model file");
     let _ = shop.init_db(); // TODO: HADLEERROR
-    let all = shop.all_pets().unwrap(); // TODO: HADLEERROR
+    let all = shop.all_pets().expect("TODO: HADLEERROR model initialization failed");
 
     let model = Rc::new(VecModel::from(all));
 
@@ -35,10 +35,10 @@ pub fn main() {
             let main_window = main_window_weak.unwrap();
             let mut new_entry = Pet::new();
 	    new_entry.name = format!("{} {}", main_window.get_name(), main_window.get_surname());
-	    let shop = open_db().unwrap(); // TODO: HADLEERROR
+	    let shop = open_db().expect("TODO HADLEERROR model file missing");
 	    match shop.add_pet(new_entry.clone()) {
 		Ok(_) => model.push(new_entry),
-		Err(x) => {} // TODO HANDLERROR
+		Err(x) => {println!("TODO HADLEERROR")}
 	    };
         });
     }
@@ -50,20 +50,20 @@ pub fn main() {
         main_window.on_updateClicked(move || {
             let main_window = main_window_weak.unwrap();
 
-	    let shop = open_db().unwrap(); // TODO: HADLEERROR
+	    let shop = open_db().expect("TODO: HADLEERROR: failed to open model file");
             let updated_entry = shop.get_pet(main_window.get_petid().to_string());
 	    match updated_entry {
-		Ok(mut updated_entry) => {
+		Some(mut updated_entry) => {
 		    updated_entry.name = format!("{}{}", main_window.get_surname().to_string(), main_window.get_surname());
 		    match shop.add_pet(updated_entry.clone()) {
 			Ok(_) => {
 			    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
 			    model.set_row_data(row, updated_entry);
 			},
-			Err(_) => {} // TODO signal error
+			Err(_) => { println!("TODO HANDLEERROR: failed to update entry {:}", updated_entry.id) }
 		    }
 		}
-		Err(_) => {} // TODO signal error
+		None => { println!("TODO signal entry not found!") }
 	    };
 
         });

@@ -19,7 +19,7 @@ pub trait PetShop {
     fn init_db(&self) ->Result<()>;
     fn add_pet(&self, pet: Pet) -> Result<()>;
     fn del_pet(&self, pet: PetId) -> Result<()>;
-    fn get_pet(&self, pet: String) -> Result<Pet>;
+    fn get_pet(&self, pet: String) -> Option<Pet>;
     fn all_pets(&self) -> Result<Vec<Pet>>;
     fn show_all_pets(&self) -> Result<()>;
     fn show_pads_with_tag(&self, _tag: String) -> Result<()> {todo!("tags")}
@@ -67,19 +67,26 @@ impl PetShop for Connection {
             Err(x) => Err(x),
         }
     }
-    fn get_pet(&self, id: String) -> Result<Pet> {
-	let mut stmt = self.prepare("SELECT * from pet where id=?1")?;
-	let mut rows = stmt.query_and_then([id], from_row::<Pet>).unwrap();
-	Ok(rows.next().unwrap().unwrap())
+    fn get_pet(&self, id: String) -> Option<Pet> {
+	println!("get_pet: '{id:}'");
+	let mut stmt = match self.prepare("SELECT * from pet where id=?1") {
+	    Ok(stmt) => stmt,
+	    Err(_) => return None
+	};
+	let mut rows = stmt.query_and_then([id], from_row::<Pet>).unwrap(); // prove: hopefully never happens
+	match rows.next() {
+	    Some(row) => Some(row.expect("unexpected ERROR")),
+	    None => None
+	}
     }
     fn all_pets(&self) -> Result<Vec<Pet>> {
         let stmt = self.prepare("SELECT * FROM pet");
         match stmt {
             Ok(mut stmt) => {
-                let rows = from_rows(stmt.query([]).unwrap());
+                let rows = from_rows(stmt.query([]).unwrap()); // prove: hopefully never happens
                 let mut all: Vec<Pet> = vec![];
                 for p in rows {
-                    all.push(p.unwrap())
+                    all.push(p.unwrap()) // OOM
                 }
                 Ok(all)
             }
