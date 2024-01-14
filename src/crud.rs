@@ -28,7 +28,9 @@ pub fn main() {
 
     main_window.set_names_list(filtered_model.clone().into());
 
-    {
+    /* Callbacks */
+
+    {   /* main_window.on_currentItemChanged */
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
@@ -41,7 +43,7 @@ pub fn main() {
         });
     }
 
-    {
+    {   /* main_window.on_createClicked */
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         main_window.on_createClicked(move || {
@@ -56,7 +58,7 @@ pub fn main() {
         });
     }
 
-    {
+    {   /* main_window.on_updateClicked */
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
@@ -82,19 +84,24 @@ pub fn main() {
         });
     }
 
-    {
+    {   /* main_window.on_deleteClicked */
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
         main_window.on_deleteClicked(move || {
             let main_window = main_window_weak.unwrap();
-
             let index = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-            model.remove(index);
+	    if let Some(pet) = model.row_data(index) {
+		let shop = open_db().expect("TODO: HANDLEERROR: failed to open model file");
+		match shop.del_pet(pet.id.clone()) {
+		    Ok(_) => { model.remove(index); }
+		    Err(_) => { println!("TODO HANDLEERROR: failed to remove entry {:}", pet.id) }
+		};
+	    };
         });
     }
 
-    {
+    {   /* main_window.on_prefixEdited */
         let main_window_weak = main_window.as_weak();
         let filtered_model = filtered_model.clone();
         main_window.on_prefixEdited(move || {
@@ -104,5 +111,6 @@ pub fn main() {
         });
     }
 
+    /* Finally, once everything is set up. */
     main_window.run().unwrap();
 }
