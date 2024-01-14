@@ -3,9 +3,10 @@ import { LineEdit, Button, Slider, StandardListView, GridBox, HorizontalBox } fr
 export component MainWindow inherits Window {
     in property <[StandardListViewItem]> names-list;
     out property <int> current-item: list.current-item;
-    out property <string> name;
+    in-out property <string> name;
     out property <string> surname;
     out property <string> prefix;
+    callback currentItemChanged <=> list.current-item-changed;
     callback prefixEdited();
     callback createClicked();
     callback updateClicked();

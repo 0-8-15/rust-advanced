@@ -31,6 +31,19 @@ pub fn main() {
     {
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
+        let filtered_model = filtered_model.clone();
+        main_window.on_currentItemChanged(move |idx| {
+            let main_window = main_window_weak.unwrap();
+	    let row = filtered_model.unfiltered_row(idx as usize);
+	    if let Some(pet) = model.row_data(row) {
+		main_window.set_name(pet.name.into());
+	    }
+        });
+    }
+
+    {
+        let main_window_weak = main_window.as_weak();
+        let model = model.clone();
         main_window.on_createClicked(move || {
             let main_window = main_window_weak.unwrap();
             let mut new_entry = Pet::new();
