@@ -14,7 +14,7 @@ pub fn main() {
     let prefix_for_wrapper = prefix.clone();
 
     let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
-    let _ = shop.init_db(); // TODO: HANDLEERROR
+    let _ = PetShop::init_db(&shop); // TODO: HANDLEERROR
     let all = shop.all_pets().expect("TODO: HANDLEERROR model initialization failed");
 
     let model = Rc::new(VecModel::from(all));
