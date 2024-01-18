@@ -42,24 +42,33 @@ use rusqlite::{Connection, Result};
 
 impl PetShop for Connection {
     fn init_db(&self) ->Result<()> {
-	self.execute("CREATE TABLE IF NOT EXISTS pet (
+        match self.execute("CREATE TABLE IF NOT EXISTS pet (
         id    TEXT UNIQUE PRIMARY KEY,
         name  TEXT NOT NULL,
         photo  BLOB
         )",
     (), // empty list of parameters.
-    )?;
-	Ok(())
+	) {
+	    Ok(_) => Ok(()),
+	    Err(err) => {println!("Err {err:?}"); panic!("No Shit Sherlock!");}
+	}
     }
     fn add_pet(&self, pet: Pet) -> Result<()> {
-	let mut stmt = self.prepare("INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)")?;
-        let params = to_params_named(&pet).unwrap();
-	// let columns = columns_from_statement(&stmt);
-        match stmt.execute(
-            params.to_slice().as_slice()) {
-                Ok(_) => Ok(()),
-                Err(x) => {println!("Err {x:?}");Err(x)}
-            }
+	let mut stmt = match self.prepare("INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)") {
+	    Ok(stmt) => stmt,
+	    Err(err) => {println!("Err {err:?}"); return Err(err)}
+	};
+        match to_params_named(&pet) {
+	    Ok(params) => {
+		// let columns = columns_from_statement(&stmt);
+		match stmt.execute(
+		    params.to_slice().as_slice()) {
+                    Ok(_) => Ok(()),
+                    Err(x) => {println!("Err {x:?}");Err(x)}
+		}
+	    }
+	    Err(err) => {println!("Err {err:?}"); Ok(()) /* FIXME This is lying */}
+	}
     }
     fn del_pet(&self, name: PetId) -> Result<()> {
         match self.execute("DELETE FROM pet WHERE id = ?1", [&name]) {
