@@ -1,10 +1,11 @@
-use slint::{Model, ModelExt, SharedString, StandardListViewItem, VecModel};
+use slint::{Model, ModelExt, SharedString, StandardListViewItem};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
 use crate::db::{open_db};
+use crate::sqlmdl::SqliteModel;
 use crate::pets::*;
 
 pub fn main() {
@@ -14,15 +15,17 @@ pub fn main() {
     let prefix_for_wrapper = prefix.clone();
 
     let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
-    let _ = PetShop::init_db(&shop); // TODO: HANDLEERROR
-    let all = shop.all_pets().expect("TODO: HANDLEERROR model initialization failed");
+    let shop = Rc::new(RefCell::new(shop));
 
-    let model = Rc::new(VecModel::from(all));
-
-    let filtered_model = Rc::new(
+    let model = Rc::new(SqliteModel::<Pet>::new(shop.clone(), PET_SHOP_TABLE));
+    let model_mapped = Rc::new(
         model
             .clone()
             .map(|n| StandardListViewItem::from(slint::format!("{}", n.name)))
+    );
+
+    let filtered_model = Rc::new(
+        model_mapped.clone()
             .filter(move |e| e.text.starts_with(prefix_for_wrapper.borrow().as_str())),
     );
 
@@ -48,13 +51,9 @@ pub fn main() {
         let model = model.clone();
         main_window.on_createClicked(move || {
             let main_window = main_window_weak.unwrap();
-            let mut new_entry = Pet::new();
-	    new_entry.name = format!("{} {}", main_window.get_name(), main_window.get_surname());
-	    let shop = open_db().expect("TODO HANDLEERROR model file missing");
-	    match shop.add_pet(new_entry.clone()) {
-		Ok(_) => model.push(new_entry),
-		Err(x) => {println!("TODO HANDLEERROR")}
-	    };
+            let mut entry = Pet::new();
+	    entry.name = main_window.get_name().to_string();
+            model.add(entry);
         });
     }
 
@@ -62,26 +61,17 @@ pub fn main() {
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
-        main_window.on_updateClicked(move || {
-            let main_window = main_window_weak.unwrap();
-	    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-	    if let Some(pet) = model.row_data(row) {
-		let shop = open_db().expect("TODO: HANDLEERROR: failed to open model file");
-		let updated_entry = shop.get_pet(pet.id);
-		match updated_entry {
-		    Some(mut updated_entry) => {
-			updated_entry.name = format!("{}{}", main_window.get_name().to_string(), main_window.get_surname());
-			match shop.add_pet(updated_entry.clone()) {
-			    Ok(_) => {
-				model.set_row_data(row, updated_entry);
-			    },
-			    Err(_) => { println!("TODO HANDLEERROR: failed to update entry {:}", updated_entry.id) }
-			}
-		    }
-		    None => { println!("TODO signal entry not found!") }
-		};
-	    };
-        });
+           main_window.on_updateClicked(move || {
+               let main_window = main_window_weak.unwrap();
+	       let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
+	       match model.row_data(row) {
+		   Some(mut entry) => {
+		       entry.name = main_window.get_name().to_string();
+		       model.set_row_data(row, entry);
+		   }
+		   None => { println!("TODO signal entry not found!") }
+	       };
+           });
     }
 
     {   /* main_window.on_deleteClicked */
@@ -92,11 +82,7 @@ pub fn main() {
             let main_window = main_window_weak.unwrap();
             let index = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
 	    if let Some(pet) = model.row_data(index) {
-		let shop = open_db().expect("TODO: HANDLEERROR: failed to open model file");
-		match shop.del_pet(pet.id.clone()) {
-		    Ok(_) => { model.remove(index); }
-		    Err(_) => { println!("TODO HANDLEERROR: failed to remove entry {:}", pet.id) }
-		};
+                model.del(pet.id.clone());
 	    };
         });
     }

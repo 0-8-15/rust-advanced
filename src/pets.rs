@@ -1,6 +1,8 @@
-// ae@enqt.de, Hansen, Jonathan <jonathan.hansen@iis.fraunhofer.de>
-
 use serde_derive::{Deserialize, Serialize};
+
+use crate::sqlmdl::*;
+
+pub trait SqlKey<T> { fn sql_key(&self) -> T; }
 
 use uuid::{Uuid};
 //#[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -34,6 +36,25 @@ impl Pet {
 	}
     }
 }
+
+impl SqlKey<PetId> for Pet { fn sql_key(&self) -> PetId { self.id.clone() } }
+
+pub const PET_SHOP_TABLE: SqlIdTable<'_> = SqlIdTable {
+    initially: &[
+        "CREATE TABLE IF NOT EXISTS DataBaseVersion AS SELECT 1 AS Version",
+        r#"
+CREATE TABLE IF NOT EXISTS pet (
+id      TEXT UNIQUE PRIMARY KEY,
+name    TEXT UNIQUE NOT NULL,
+photo   BLOB
+)"#,
+    ],
+    create: "INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
+    read: "SELECT * from pet where id=?1",
+    all: "SELECT * FROM pet ORDER BY name",
+    //update: &'a str,
+    delete: "DELETE FROM pet WHERE id = ?1"
+};
 
 /* ********************************************************************** */
 

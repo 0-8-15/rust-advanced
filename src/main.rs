@@ -1,7 +1,11 @@
 
+const DATABASE_FILE_NAME: &str = "pets.db";
+
 mod pets;
 
 mod db;
+
+mod sqlmdl;
 
 mod crud;
 
@@ -14,19 +18,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn database() {
-        let conn = crate::db::open_db().unwrap();
-        let _ = conn.init_db();
-        let mut pet: Pet = Pet::new();
-        pet.id="67e55044-10b1-426f-9247-bb680e5fe0c8".to_string();
-        pet.name="Alex".into();
-        let _ = conn.add_pet(pet);
-        assert_eq!(conn.all_pets().expect("failed to load pets table").len(), 1);
-
-        let conn = crate::db::open_db().unwrap();
-	let l1 = conn.all_pets().expect("failed to load pets table").len();
-        let _ = conn.del_pet("67e55044-10b1-426f-9247-bb680e5fe0c8".to_string());
-	assert_eq!(conn.all_pets().expect("failed to load pets table").len(), l1-1)
+    fn xlsx() {
+	crate::resultlist::write();
     }
 
 }
