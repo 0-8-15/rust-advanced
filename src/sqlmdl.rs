@@ -9,8 +9,9 @@ struct SqlIdTable<'a> {
     pub create: &'a str,
     pub read: &'a str,
     pub all: &'a str,
-    //pub update: &'a str,
-    pub delete: &'a str
+    pub update: &'a str,
+    pub delete: &'a str,
+    pub delkey: &'a [&'a str],
 }
 
 impl <'a>SqlIdTable<'a> {
@@ -19,16 +20,18 @@ impl <'a>SqlIdTable<'a> {
         create: &'a str,
         read: &'a str,
         all: &'a str,
-        //update: &'a str,
-        delete: &'a str
+        update: &'a str,
+        delete: &'a str,
+        delkey: &'a [&'a str],
     ) -> Self {
         Self{
             initially,
             create,
             read,
             all,
-            //update,
-            delete
+            update,
+            delete,
+            delkey,
         }
     }
 }
@@ -74,6 +77,24 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
     fn add_obj(&self, obj: T) -> Result<(), rusqlite::Error> {
         let conn = self.connection.borrow();
 	let mut stmt = match conn.prepare(self.sql.create) {
+	    Ok(stmt) => stmt,
+	    Err(err) => {println!("Err {err:?}"); return Err(err)}
+	};
+        match to_params_named(&obj) {
+	    Ok(params) => {
+		// let columns = columns_from_statement(&stmt);
+		match stmt.execute(
+		    params.to_slice().as_slice()) {
+                    Ok(_) => Ok(()),
+                    Err(x) => {println!("Err {x:?}");Err(x)}
+		}
+	    }
+	    Err(err) => {println!("Err {err:?}"); Ok(()) /* FIXME This is lying */}
+	}
+    }
+    fn update_obj(&self, obj: T) -> Result<(), rusqlite::Error> {
+        let conn = self.connection.borrow();
+	let mut stmt = match conn.prepare(self.sql.update) {
 	    Ok(stmt) => stmt,
 	    Err(err) => {println!("Err {err:?}"); return Err(err)}
 	};
@@ -142,13 +163,47 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
     }
 
     /// Remove the row from the model
-    pub fn del(&self, name: PetId) {
+    fn delete_value(&self, value: &T) -> Result<usize, serde_rusqlite::Error> {
+/*
         match self.connection.borrow().execute(self.sql.delete, [&name]) {
             Ok(_) => { self.reset(); }
 	    Err(err) => {println!("Err in del {err:?}");}
         }
+*/
+        let conn = self.connection.borrow();
+	let mut stmt = conn.prepare(self.sql.delete)?;
+        // let columns = stmt.column_names();
+        match to_params_named_with_fields(&value, self.sql.delkey) {
+	    Ok(params) => {
+		// let columns = columns_from_statement(&stmt);
+                match stmt.execute(params.to_slice().as_slice()) {
+                    Ok(n) => { Ok(n) }
+                    Err(x) => {println!("Err {x:?}"); Err(serde_rusqlite::Error::Rusqlite(x))}
+		}
+	    }
+	    Err(err) => {println!("Err {err:?}"); Err(err)}
+	}
+    }
+    /// Remove the row from the model
+    pub fn del_value(&self, value: &T) {
+        self.delete_value(value);
+        self.reset();
     }
 
+    /// Remove the row from the model
+    pub fn del_row(&self, index: usize) {
+        let array = self.array.borrow();
+	if let Some(value) = array.get(index) {
+            match self.delete_value(value) {
+                Ok(n) => {
+                    drop(array);
+                    // if n > 0 { self.notify.row_removed(index, 1); }
+                    self.reset();
+                }
+	        Err(err) => {eprintln!("Err {err:?}");}
+            }
+        }
+    }
 /*
     /// Replace inner Vec with new data
     pub fn set_vec(&self, new: impl Into<Vec<T>>) {
@@ -196,8 +251,14 @@ impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > 
         self.array.borrow().get(row).cloned()
     }
 
-    fn set_row_data(&self, _row: usize, data: Self::Data) {
-        self.add(data)
+    fn set_row_data(&self, row: usize, data: Self::Data) {
+        match self.update_obj(data.clone()) {
+            Ok(_) => {
+                *self.array.borrow_mut().get_mut(row).unwrap()=data.into();
+                self.notify.row_changed(row)
+            }
+	    Err(err) => {println!("Err in set_row_data {err:?}");}
+        }
     }
 
     fn model_tracker(&self) -> &dyn ModelTracker {

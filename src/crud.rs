@@ -74,18 +74,16 @@ pub fn main() {
            });
     }
 
-    {   /* main_window.on_deleteClicked */
+       /* main_window.on_deleteClicked */
+    main_window.on_deleteClicked({
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
-        main_window.on_deleteClicked(move || {
+        move || {
             let main_window = main_window_weak.unwrap();
             let index = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-	    if let Some(pet) = model.row_data(index) {
-                model.del(pet.id.clone());
-	    };
-        });
-    }
+            model.del_row(index);
+        }});
 
     {   /* main_window.on_prefixEdited */
         let main_window_weak = main_window.as_weak();

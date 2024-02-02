@@ -49,11 +49,11 @@ name    TEXT UNIQUE NOT NULL,
 photo   BLOB
 )"#,
     ],
-    create: "INSERT OR REPLACE INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
+    create: "INSERT INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
     read: "SELECT * from pet where id=?1",
     all: "SELECT * FROM pet ORDER BY name",
-    //update: &'a str,
-    delete: "DELETE FROM pet WHERE id = ?1"
+    update: "UPDATE pet SET id=:id, name=:name, num=:num, arrival=:arrival, photo=:photo, active=:active WHERE id=:id",
+    delete: "DELETE FROM pet WHERE id = :id", delkey: &["id"],
 };
 
 /* ********************************************************************** */
