@@ -185,9 +185,10 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
 	}
     }
     /// Remove the row from the model
-    pub fn del_value(&self, value: &T) {
-        self.delete_value(value);
+    pub fn del_value(&self, value: T) -> Result<(), serde_rusqlite::Error> {
+        self.delete_value(&value)?;
         self.reset();
+        Ok(())
     }
 
     /// Remove the row from the model
