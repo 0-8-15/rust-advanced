@@ -16,7 +16,15 @@ pub fn main() {
     let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
     let shop = Rc::new(RefCell::new(shop));
 
-    let model = Rc::new(SqliteModel::<Pet>::new(shop.clone(), PET_SHOP_TABLE));
+     let report_error = {
+        let main_window_weak = main_window.as_weak();
+        move |msg| {
+            let main_window = main_window_weak.unwrap();
+            main_window.set_last_error(SharedString::from(msg))
+        }
+    };
+
+    let model = Rc::new(SqliteModel::<Pet,_>::new(shop.clone(), PET_SHOP_TABLE, report_error.clone()));
     let model_mapped = Rc::new(
         model
             .clone()
@@ -48,12 +56,13 @@ pub fn main() {
 
     main_window.on_createClicked({
         let main_window_weak = main_window.as_weak();
+        let report_error =report_error.clone();
         let model = model.clone();
         move || {
             let main_window = main_window_weak.unwrap();
             let mut entry = Pet::new();
 	    entry.name = main_window.get_name().to_string();
-            model.add(entry);
+            model.add(entry).unwrap_or_else(|err| report_error(format!("{err:}")));
         }});
 
     main_window.on_updateClicked({

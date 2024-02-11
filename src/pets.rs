@@ -52,7 +52,7 @@ photo   BLOB
     create: "INSERT INTO pet (id, name, photo) VALUES (:id, :name, :photo)",
     read: "SELECT * from pet where id=?1",
     all: "SELECT * FROM pet ORDER BY name",
-    update: "UPDATE pet SET id=:id, name=:name, num=:num, arrival=:arrival, photo=:photo, active=:active WHERE id=:id",
+    update: "UPDATE pet SET id=:id, name=:name, photo=:photo WHERE id=:id",
     delete: "DELETE FROM pet WHERE id = :id", delkey: &["id"],
 };
 

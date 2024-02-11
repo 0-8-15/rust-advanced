@@ -42,14 +42,23 @@ use std::rc::Rc;
 
 /// A [`Model`] backed by a  sqlite connection `Vec<T>`
 //#[derive(Default)]
-pub struct SqliteModel<'a, T> {
+pub struct SqliteModel<'a, T, R>
+where
+    R: 'static + Fn(String),
+{
     array: RefCell<Vec<T>>, // cache the current backng store
     connection: Rc<RefCell<Connection>>,
     sql: SqlIdTable<'a>,
     notify: ModelNotify,
+    report_error: R,
 }
 
-impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > SqliteModel<'a, T> {
+impl <'a, T, R> SqliteModel<'a, T, R>
+where
+    T: 'static,
+    T: for<'de> serde::Deserialize<'de> + serde::Serialize,
+    R: 'static + Fn(String),
+{
 
     pub fn init(&self) /* ->Result<(), rusqlite::Error> */ {
         let conn = self.connection.borrow();
@@ -63,13 +72,16 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
         /* Ok(()) */
     }
 
-    pub fn new(connection: Rc<RefCell<Connection>>, sql: SqlIdTable<'static>) -> Self {
+    pub fn new(connection: Rc<RefCell<Connection>>,
+               sql: SqlIdTable<'static>,
+               report_error: R) -> Self {
         let array: Vec<T> = Vec::new();
         let result = Self {
             array: RefCell::new(array),
             connection: connection,
             sql: sql,
-            notify: Default::default()
+            notify: Default::default(),
+            report_error,
         };
         result.init();
         result
@@ -97,7 +109,7 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
         let conn = self.connection.borrow();
 	let mut stmt = match conn.prepare(self.sql.update) {
 	    Ok(stmt) => stmt,
-	    Err(err) => {println!("Err {err:?}"); return Err(Error::Rusqlite(err))}
+	    Err(err) => { return Err(Error::Rusqlite(err)) }
 	};
         match to_params_named(&obj) {
 	    Ok(params) => {
@@ -105,10 +117,10 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
 		match stmt.execute(
 		    params.to_slice().as_slice()) {
                     Ok(_) => Ok(()),
-                    Err(x) => {println!("Err {x:?}");Err(Error::Rusqlite(x))}
+                    Err(err) => { Err(Error::Rusqlite(err))}
 		}
 	    }
-	    Err(err) => {println!("Err {err:?}"); Ok(()) /* FIXME This is lying */}
+	    Err(err) => { Err(err) }
 	}
     }
     fn del_key(&self, name: PetId) -> Result<()> {
@@ -241,7 +253,10 @@ impl <'a, T>From<Connection> for SqliteModel<'a, T> {
 }
  */
 
-impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Model for SqliteModel<'static, T> {
+impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize, R> Model for SqliteModel<'static, T, R>
+where
+    R: 'static + Fn(String),
+{
     type Data = T;
 
     fn row_count(&self) -> usize {
@@ -258,7 +273,7 @@ impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > 
                 *self.array.borrow_mut().get_mut(row).unwrap()=data.into();
                 self.notify.row_changed(row)
             }
-	    Err(err) => {println!("Err in set_row_data {err:?}");}
+	    Err(err) => {(self.report_error)(format!("{err:?}"));}
         }
     }
 

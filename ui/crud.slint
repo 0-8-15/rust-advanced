@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { LineEdit, Button, Slider, StandardListView, GridBox, HorizontalBox } from "std-widgets.slint";
+import { GroupBox, VerticalBox, StandardButton } from "std-widgets.slint";
 
 export component MainWindow inherits Window {
     in property <[StandardListViewItem]> names-list;
@@ -14,6 +15,8 @@ export component MainWindow inherits Window {
     callback createClicked();
     callback updateClicked();
     callback deleteClicked();
+
+    in-out property <string> last-error;
 
     GridBox {
         Text {
@@ -77,6 +80,29 @@ export component MainWindow inherits Window {
 
                 text: "Delete";
                 enabled: list.current-item != -1 && list.current-item < root.names-list.length;
+            }
+        }
+    }
+
+    if last-error != "" : err := Rectangle {
+        opacity: 1;
+        background: root.background;
+        border-color: red;
+        border-width: 2px;
+        border-radius: 6px;
+        height: msg.min-height;
+        width: msg.min-width * 1.1;
+        msg := GroupBox {
+            title: "Error";
+            VerticalBox {
+                width: 100%;
+                Text {
+                    text: last-error;
+                    width: (root.width - clear.preferred-width) *0.8;
+		    horizontal-alignment: left;
+                    wrap: word-wrap;
+                }
+                clear := StandardButton { kind: close; clicked => { last-error = ""; } }
             }
         }
     }
