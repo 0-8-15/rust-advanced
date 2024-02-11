@@ -1,5 +1,6 @@
 use serde_rusqlite::*;
-use rusqlite::{Connection, Result};
+use serde_rusqlite::Result;
+use rusqlite::{Connection};
 
 type PetId = String;
 
@@ -74,11 +75,11 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
         result
     }
 
-    fn add_obj(&self, obj: T) -> Result<(), rusqlite::Error> {
+    fn add_obj(&self, obj: T) -> Result<()> {
         let conn = self.connection.borrow();
 	let mut stmt = match conn.prepare(self.sql.create) {
 	    Ok(stmt) => stmt,
-	    Err(err) => {println!("Err {err:?}"); return Err(err)}
+	    Err(err) => {println!("Err {err:?}"); return Err(Error::Rusqlite(err))}
 	};
         match to_params_named(&obj) {
 	    Ok(params) => {
@@ -86,17 +87,17 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
 		match stmt.execute(
 		    params.to_slice().as_slice()) {
                     Ok(_) => Ok(()),
-                    Err(x) => {println!("Err {x:?}");Err(x)}
+                    Err(x) => {println!("Err {x:?}");Err(Error::Rusqlite(x))}
 		}
 	    }
-	    Err(err) => {println!("Err {err:?}"); Ok(()) /* FIXME This is lying */}
+	    Err(err) => {println!("Err {err:?}"); Err(err) }
 	}
     }
-    fn update_obj(&self, obj: T) -> Result<(), rusqlite::Error> {
+    fn update_obj(&self, obj: T) -> Result<()> {
         let conn = self.connection.borrow();
 	let mut stmt = match conn.prepare(self.sql.update) {
 	    Ok(stmt) => stmt,
-	    Err(err) => {println!("Err {err:?}"); return Err(err)}
+	    Err(err) => {println!("Err {err:?}"); return Err(Error::Rusqlite(err))}
 	};
         match to_params_named(&obj) {
 	    Ok(params) => {
@@ -104,7 +105,7 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
 		match stmt.execute(
 		    params.to_slice().as_slice()) {
                     Ok(_) => Ok(()),
-                    Err(x) => {println!("Err {x:?}");Err(x)}
+                    Err(x) => {println!("Err {x:?}");Err(Error::Rusqlite(x))}
 		}
 	    }
 	    Err(err) => {println!("Err {err:?}"); Ok(()) /* FIXME This is lying */}
@@ -113,7 +114,7 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
     fn del_key(&self, name: PetId) -> Result<()> {
         match self.connection.borrow().execute(self.sql.delete, [&name]) {
             Ok(_) => Ok(()),
-            Err(x) => Err(x),
+            Err(x) => Err(Error::Rusqlite(x)),
         }
     }
     fn get(&self, id: String) -> Option<T> {
@@ -140,7 +141,7 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
                 }
                 Ok(all)
             }
-            Err(x) => Err(x),
+            Err(x) => Err(Error::Rusqlite(x)),
         }
     }
 
@@ -155,15 +156,14 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
     }
 
     /// Add a row to the model
-    pub fn add(&self, value: T) {
-        match self.add_obj(value) {
-            Ok(_) => { self.reset(); }
-	    Err(err) => {println!("Err in add {err:?}");}
-        }
+    pub fn add(&self, value: T) -> Result<()> {
+        self.add_obj(value)?;
+        self.reset();
+        Ok(())
     }
 
     /// Remove the row from the model
-    fn delete_value(&self, value: &T) -> Result<usize, serde_rusqlite::Error> {
+    fn delete_value(&self, value: &T) -> Result<usize> {
 /*
         match self.connection.borrow().execute(self.sql.delete, [&name]) {
             Ok(_) => { self.reset(); }
@@ -178,14 +178,14 @@ impl <'a, T: 'static + for<'de> serde::Deserialize<'de> + serde::Serialize > Sql
 		// let columns = columns_from_statement(&stmt);
                 match stmt.execute(params.to_slice().as_slice()) {
                     Ok(n) => { Ok(n) }
-                    Err(x) => {println!("Err {x:?}"); Err(serde_rusqlite::Error::Rusqlite(x))}
+                    Err(x) => {println!("Err {x:?}"); Err(Error::Rusqlite(x))}
 		}
 	    }
 	    Err(err) => {println!("Err {err:?}"); Err(err)}
 	}
     }
     /// Remove the row from the model
-    pub fn del_value(&self, value: T) -> Result<(), serde_rusqlite::Error> {
+    pub fn del_value(&self, value: T) -> Result<()> {
         self.delete_value(&value)?;
         self.reset();
         Ok(())
