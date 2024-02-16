@@ -6,17 +6,31 @@ import { GroupBox, VerticalBox, StandardButton } from "std-widgets.slint";
 
 import { SQLBrowser } from "./sql.slint";
 
+export struct PetUi {
+    id: string,
+    name: string,
+}
+
 export component MainWindow inherits Window {
     in property <[StandardListViewItem]> names-list;
     out property <int> current-item: list.current-item;
-    in-out property <string> name;
-    out property <string> surname;
+    property <PetUi> current-pet;
+    callback set-current-pet(PetUi);
+    set-current-pet(pet) => {
+        current-pet = pet;
+        edit-name.text = pet.name;
+    }
+    callback clear-current-pet();
+    clear-current-pet() => {
+        set-current-pet({});
+        list.set-current-item(-1);
+    }
     out property <string> prefix;
     callback currentItemChanged <=> list.current-item-changed;
-    callback prefixEdited();
-    callback createClicked();
-    callback updateClicked();
-    callback deleteClicked();
+    callback prefixEdited(string);
+    callback createClicked(PetUi) -> bool;
+    callback updateClicked(PetUi);
+    callback deleteClicked(PetUi) -> bool;
 
     in-out property <string> last-error;
 
@@ -29,7 +43,7 @@ export component MainWindow inherits Window {
 
         LineEdit {
             text <=> root.prefix;
-            edited => { root.prefixEdited() }
+            edited => { root.prefixEdited(self.text) }
         }
 
         list := StandardListView {
@@ -47,17 +61,7 @@ export component MainWindow inherits Window {
             horizontal-alignment: right;
         }
 
-        LineEdit { text <=> root.name; }
-
-        Text {
-            col: 2;
-            row: 2;
-            text: "Surname: ";
-            vertical-alignment: center;
-            horizontal-alignment: right;
-        }
-
-        LineEdit { text <=> root.surname; }
+        edit-name := LineEdit { text: root.current-pet.name; edited => { root.current-pet.name = self.text } }
 
         HorizontalBox {
             padding-left: 0;
@@ -65,23 +69,35 @@ export component MainWindow inherits Window {
             row: 4;
             alignment: start;
 
-            Button {
-                clicked => { root.createClicked() }
+            create-button := Button {
+                clicked => {
+                    if( root.current-pet.id == "" ) {
+                        if( root.createClicked(current-pet) ) { clear-current-pet() }
+                    } else { clear-current-pet() }
+                }
 
                 text: "Create";
             }
+            states [
+                editing when root.current-pet.id != "" : {
+                    create-button.text: "Clear";
+                }
+                creating when root.current-pet.id == "" : {
+                    create-button.text: "Create";
+                }
+            ]
             Button {
-                clicked => { root.updateClicked() }
+                clicked => { root.updateClicked(current-pet) }
 
                 text: "Update";
-                enabled: list.current-item != -1 && list.current-item < root.names-list.length;
+                enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
 
             }
             Button {
-                clicked => { root.deleteClicked() }
+                clicked => { if( root.deleteClicked(current-pet) ) { clear-current-pet() } }
 
                 text: "Delete";
-                enabled: list.current-item != -1 && list.current-item < root.names-list.length;
+                enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
             }
         }
 

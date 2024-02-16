@@ -8,6 +8,15 @@ use crate::db::{open_db};
 use crate::sqlmdl::SqliteModel;
 use crate::pets::*;
 
+impl From<Pet> for PetUi {
+    fn from(value: Pet) -> Self {
+        PetUi {
+            id: value.id.into(),
+            name: value.name.into(),
+        }
+    }
+}
+
 pub fn main() {
     let main_window = MainWindow::new().unwrap();
 
@@ -50,31 +59,29 @@ pub fn main() {
             let main_window = main_window_weak.unwrap();
 	    let row = filtered_model.unfiltered_row(idx as usize);
 	    if let Some(pet) = model.row_data(row) {
-		main_window.set_name(pet.name.into());
+		main_window.invoke_set_current_pet(PetUi::from(pet));
 	    }
         }});
 
     main_window.on_createClicked({
-        let main_window_weak = main_window.as_weak();
         let report_error =report_error.clone();
         let model = model.clone();
-        move || {
-            let main_window = main_window_weak.unwrap();
+        move |new| {
             let mut entry = Pet::new();
-	    entry.name = main_window.get_name().to_string();
-            model.add(entry).unwrap_or_else(|err| report_error(format!("{err:}")));
+	    entry.name = new.name.into();
+            match model.add(entry) { Ok(_) => true, Err(err) => { report_error(format!("Create Failed\n{err:}")); false } }
         }});
 
     main_window.on_updateClicked({
         let main_window_weak = main_window.as_weak();
         let model = model.clone();
         let filtered_model = filtered_model.clone();
-        move || {
+        move |update| {
             let main_window = main_window_weak.unwrap();
 	    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
 	    match model.row_data(row) {
 		Some(mut entry) => {
-		    entry.name = main_window.get_name().to_string();
+		    entry.name = update.name.into();
 		    model.set_row_data(row, entry);
 		}
 		None => { println!("TODO signal entry not found!") }
@@ -82,21 +89,19 @@ pub fn main() {
         }});
 
     main_window.on_deleteClicked({
-        let main_window_weak = main_window.as_weak();
         let model = model.clone();
-        let filtered_model = filtered_model.clone();
-        move || {
-            let main_window = main_window_weak.unwrap();
-            let index = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-            model.del_row(index);
+        let report_error =report_error.clone();
+        move |removed| {
+            match model.del_value(Pet{id: removed.id.into(), ..Default::default()}) {
+                Ok(n) => true,
+                Err(err) => { report_error(format!("{}", err)); false }
+            }
         }});
 
     main_window.on_prefixEdited({
-        let main_window_weak = main_window.as_weak();
         let filtered_model = filtered_model.clone();
-        move || {
-            let main_window = main_window_weak.unwrap();
-            *prefix.borrow_mut() = main_window.get_prefix();
+        move |str| {
+            prefix.replace(str.into());
             filtered_model.reset();
         }});
 

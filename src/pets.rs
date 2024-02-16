@@ -11,6 +11,7 @@ type PetId = String;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[derive(Clone)]
+#[derive(Default)]
 pub struct Pet {
     pub id: PetId,
     pub name: String,
