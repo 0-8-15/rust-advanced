@@ -4,6 +4,8 @@
 import { LineEdit, Button, Slider, StandardListView, GridBox, HorizontalBox } from "std-widgets.slint";
 import { GroupBox, VerticalBox, StandardButton } from "std-widgets.slint";
 
+import { SQLBrowser } from "./sql.slint";
+
 export component MainWindow inherits Window {
     in property <[StandardListViewItem]> names-list;
     out property <int> current-item: list.current-item;
@@ -82,7 +84,13 @@ export component MainWindow inherits Window {
                 enabled: list.current-item != -1 && list.current-item < root.names-list.length;
             }
         }
+
+        sql-browser := SQLBrowser { col: 0; colspan: 4; row: 5; rowspan: 5; min-height: 30rem; use-standard: false; }
+
     }
+
+    callback test-query <=> sql-browser.query;
+    callback test-result <=> sql-browser.result;
 
     if last-error != "" : err := Rectangle {
         opacity: 1;

@@ -1,0 +1,173 @@
+import { LineEdit, ScrollView} from "std-widgets.slint";
+import { TextEdit, StandardButton, ComboBox, StandardTableView } from "std-widgets.slint";
+
+
+/*
+
+pub fn query_as_array_of_array_of<T>(conn: &Connection, query: &str)
+                                     -> Result<Vec<Vec<T>>>
+    where T: FromSql + for<'a> std::convert::From<&'a str>
+{
+    let mut stmt = conn.prepare(query).unwrap();
+    let mut result = vec![];
+    let mut row: Vec<T> = vec![];
+    for col in stmt.column_names() {
+        row.push(col.into())
+    }
+    result.push(row);
+    let colco = stmt.column_count();
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+	let mut v: Vec<T> = Vec::new();
+        for col in 0..colco {
+            let e: T = row.get(col)?;
+            v.push(e.into());
+        }
+	result.push(v)
+    }
+    Ok(result)
+}
+
+
+    {
+        use crate::db;
+        use slint::ModelRc;
+        let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
+        let all = query_as_array_of_array_of::<String>(&shop, "select name, ''||num as num from pet").unwrap();
+        let all: Vec<ModelRc<_>> = all.into_iter().map(|e| ModelRc::new(VecModel::from(e.into_iter().map(|x: std::string::String| x.into()).collect::<Vec<_>>()))).collect();
+        let stuff = ModelRc::new(VecModel::from(all));
+        main_window.set_test_data(stuff);
+        drop(shop);
+    }
+
+*/
+
+export component Matrix inherits Rectangle {
+    // in-out property <[[string]]> cells;
+    in-out property <[TableColumn]> columns;
+    in-out property <[[StandardListViewItem]]> cells;
+
+    private property <length> cell-height: 32px;
+    private property <length> cell-width: 100px;
+    private property <{r: int, c: int}> active-cell: { r: -1, c: -1 };
+
+    ScrollView {
+        width: 100%;
+        height: 100%;
+        viewport-width: 20px + cells[0].length * root.cell-width;
+        //viewport-height: (cells.length + 1) * root.cell-height;
+
+        for heading[idx] in columns : Rectangle {
+            y:0;
+            x: 20px + idx * root.cell-width;
+            height: root.cell-height;
+            width: root.cell-width;
+            Text { x:0;y:0; text: heading.title; }
+        }
+
+        ScrollView {
+            y: root.cell-height;
+            viewport-width: 20px + cells[0].length * root.cell-width;
+            viewport-height: (cells.length + 2) * root.cell-height;
+
+            for row[row-idx] in root.cells : Rectangle {
+                y: row-idx * root.cell-height;
+                height: root.cell-height;
+
+                Text { x:0;y:0; text: row_idx; }
+
+                for cell[col-idx] in row: Rectangle {
+                    property <bool> is-active: root.active-cell.r == row-idx && root.active-cell.c == col-idx;
+
+                    y:0;
+                    height: root.cell-height;
+                    width: root.cell-width;
+                    border-color: gray;
+                    border-width: 1px;
+                    x: 20px + col-idx * root.cell-width;
+
+                    Text {
+                        visible: !is-active && cell.text != "";
+                        text: " " + cell.text;
+                        vertical-alignment: center;
+                        width: 100%;
+                        height: 100%;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            l.text = cell.text;
+                            root.active-cell = {r: row-idx, c: col-idx};
+                            l.focus();
+                        }
+                    }
+
+                    l := LineEdit {
+                        edited => {
+                            cell.text = self.text
+                        }
+                        accepted => {
+                            root.active-cell = { r: -1, c: -1};
+                        }
+
+                        visible: is-active;
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component SQLBrowser inherits VerticalLayout {
+    in-out property <bool> use-standard;
+    callback query(string);
+    callback result([TableColumn], [[StandardListViewItem]]);
+
+    property <[TableColumn]> columns;
+    property <[[StandardListViewItem]]> rows;
+
+    result(h, c) => {
+        columns = h;
+        rows = c;
+    }
+
+    HorizontalLayout {
+        query := TextEdit {
+            min-height: 6rem;
+            text: "";
+        }
+        VerticalLayout {
+            StandardButton {
+                kind: apply;
+                clicked => { root.query(query.text) }
+            }
+            selected-mode := ComboBox {
+                model: ["standard", "matrix"];
+                current-index: root.use-standard ? 0 : 1;
+                selected(v) => { use-standard = self.current-index == 1 ? false : true }
+            }
+        }
+    }
+    if use-standard : StandardTableView {
+        width: 100%; height: 100%;
+        columns: columns;
+        rows: rows;
+    }
+    if !use-standard : Matrix { columns: columns; cells <=> rows; }
+}
+
+/*
+component Cell inherits MainWindow {
+    // initialize the cells with demy value to be viewed in the preview
+    in-out property <[string]> _row: ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+    cells: [
+        root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row,
+        root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row,
+        root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row,
+        root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row,
+        root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row, root._row,
+    ];
+}
+// */

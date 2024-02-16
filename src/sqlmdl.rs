@@ -285,3 +285,40 @@ where
         self
     }
 }
+
+/* **************************************************************************** */
+use slint::{StandardListViewItem, TableColumn, VecModel, ModelRc};
+use rusqlite::types::ValueRef;
+
+pub fn standard_table_model_from(
+    conn: &Connection, query: &str) // FIXME: add Parameter for parameters!!!
+    -> Result<(ModelRc<TableColumn>, ModelRc<ModelRc<StandardListViewItem>>)> {
+    let mut stmt = conn.prepare(query)?;
+    let headings = stmt.column_names()
+        .into_iter()
+        .map(|n|  { let mut x: slint::TableColumn = Default::default(); x.title= slint::format!("{}", n).into(); x } )
+        .collect::<Vec<_>>();
+
+    let colco = stmt.column_count();
+    let rows = stmt.query_map([], |row| {
+	let mut v: Vec<StandardListViewItem> = Vec::new();
+	for j in 0..colco {
+            let c = match row.get_ref_unwrap(j) {
+                ValueRef::Null => slint::format!(""),
+                ValueRef::Integer(n) => slint::format!("{n:}"),
+                ValueRef::Real(n) => slint::format!("{n:}"),
+                ValueRef::Text(s) => slint::format!("{}", ValueRef::Text(s).as_str()?),
+                ValueRef::Blob(_) => slint::format!("BLOB"),
+            };
+            v.push(StandardListViewItem::from(c))
+        }
+	Ok(ModelRc::new(VecModel::from(v)))
+    })?;
+
+    let mut data = Vec::new();
+    for row in rows {
+        data.push(row?);
+    }
+
+    Ok((ModelRc::new(VecModel::from(headings)), ModelRc::new(VecModel::from(data))))
+}

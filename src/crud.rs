@@ -100,6 +100,19 @@ pub fn main() {
             filtered_model.reset();
         }});
 
+    main_window.on_test_query({
+        let main_window_weak = main_window.as_weak();
+        let shop = shop.clone();
+        move |str| {
+            match crate::sqlmdl::standard_table_model_from(&shop.borrow(), str.as_str()) {
+                Ok((headings, rows)) => {
+                    let main_window = main_window_weak.unwrap();
+                    main_window.invoke_test_result(headings, rows);
+                }
+                Err(err) => report_error(format!("In Query handling:\n{err:}"))
+            }
+        }});
+
     /* Finally, once everything is set up. */
     main_window.run().unwrap();
 }
