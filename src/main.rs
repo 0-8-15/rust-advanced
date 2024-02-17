@@ -5,8 +5,6 @@ mod pets;
 
 mod db;
 
-mod sqlmdl;
-
 mod crud;
 
 fn main() {

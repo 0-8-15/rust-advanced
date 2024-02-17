@@ -5,7 +5,7 @@ use std::rc::Rc;
 slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
 use crate::db::{open_db};
-use crate::sqlmdl::SqliteModel;
+use slintext::sqlmdl::SqliteModel;
 use crate::pets::*;
 
 impl From<Pet> for PetUi {
@@ -109,7 +109,7 @@ pub fn main() {
         let main_window_weak = main_window.as_weak();
         let shop = shop.clone();
         move |str| {
-            match crate::sqlmdl::standard_table_model_from(&shop.borrow(), str.as_str()) {
+            match slintext::sqlmdl::standard_table_model_from(&shop.borrow(), str.as_str()) {
                 Ok((headings, rows)) => {
                     let main_window = main_window_weak.unwrap();
                     main_window.invoke_test_result(headings, rows);

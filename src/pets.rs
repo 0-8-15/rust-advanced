@@ -1,6 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 
-use crate::sqlmdl::*;
+use slintext::sqlmdl::*;
 
 pub trait SqlKey<T> { fn sql_key(&self) -> T; }
 
