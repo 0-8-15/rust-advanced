@@ -1,5 +1,5 @@
 import { LineEdit, ScrollView} from "std-widgets.slint";
-import { TextEdit, StandardButton, ComboBox, StandardTableView } from "std-widgets.slint";
+import { TextEdit, StandardButton, ComboBox, GroupBox, VerticalBox, StandardTableView } from "std-widgets.slint";
 
 
 /*
@@ -47,9 +47,15 @@ export component Matrix inherits Rectangle {
     in-out property <[TableColumn]> columns;
     in-out property <[[StandardListViewItem]]> cells;
 
+    in-out property <[StandardListViewItem]> current-line;
     private property <length> cell-height: 32px;
     private property <length> cell-width: 100px;
     private property <{r: int, c: int}> active-cell: { r: -1, c: -1 };
+
+    function set-active(r: int, c: int) {
+        active-cell = {r: r, c: c};
+        current-line = root.cells[root.active-cell.r]
+    }
 
     ScrollView {
         width: 100%;
@@ -65,8 +71,24 @@ export component Matrix inherits Rectangle {
             Text { x:0;y:0; text: heading.title; }
         }
 
-        ScrollView {
+        for cell[idx] in current-line : Rectangle {
             y: root.cell-height;
+            x: 20px + idx * root.cell-width;
+            height: root.cell-height;
+            width: root.cell-width;
+            LineEdit {
+                x:0; y:0; width: 100%; height: 100%;
+                text: cell.text;
+                edited => { cell.text = self.text; }
+                accepted => {
+                    cells[active-cell.r] = current-line;
+                    set-active(-1, -1);
+                }
+            }
+        }
+
+        ScrollView {
+            y: root.cell-height * 2;
             viewport-width: 20px + cells[0].length * root.cell-width;
             viewport-height: (cells.length + 2) * root.cell-height;
 
@@ -97,7 +119,7 @@ export component Matrix inherits Rectangle {
                     TouchArea {
                         clicked => {
                             l.text = cell.text;
-                            root.active-cell = {r: row-idx, c: col-idx};
+                            set-active(row-idx, col-idx);
                             l.focus();
                         }
                     }
@@ -107,7 +129,7 @@ export component Matrix inherits Rectangle {
                             cell.text = self.text
                         }
                         accepted => {
-                            root.active-cell = { r: -1, c: -1};
+                            set-active(-1, -1);
                         }
 
                         visible: is-active;
@@ -122,7 +144,8 @@ export component Matrix inherits Rectangle {
 
 export component SQLBrowser inherits VerticalLayout {
     in-out property <bool> use-standard;
-    callback query(string);
+    callback query(string, string);
+    callback execute(string, [StandardListViewItem]) -> bool;
     callback result([TableColumn], [[StandardListViewItem]]);
 
     property <[TableColumn]> columns;
@@ -133,17 +156,42 @@ export component SQLBrowser inherits VerticalLayout {
         rows = c;
     }
 
+    property <[StandardListViewItem]> current-line;
+
     HorizontalLayout {
-        query := TextEdit {
-            min-height: 6rem;
-            text: "";
-        }
+        vertical-stretch: 0;
         VerticalLayout {
-            StandardButton {
-                kind: apply;
-                clicked => { root.query(query.text) }
+            horizontal-stretch: 1;
+            GroupBox {
+                title: "SQL query";
+                query := TextEdit {
+                    min-height: 5rem;
+                    text: "";
+                }
             }
+            GroupBox {
+                title: "SQL row update";
+                update := TextEdit {
+                    min-height: 5rem;
+                    text: "";
+                }
+            }
+        }
+        VerticalBox {
+            horizontal-stretch: 0;
+            StandardButton {
+                vertical-stretch: 0;
+                kind: ok;
+                clicked => { root.query(query.text, update.text) }
+            }
+            StandardButton {
+                vertical-stretch: 0;
+                kind: apply;
+                clicked => { root.execute(query.text, current-line) }
+            }
+            Rectangle {}
             selected-mode := ComboBox {
+                vertical-stretch: 0;
                 model: ["standard", "matrix"];
                 current-index: root.use-standard ? 0 : 1;
                 selected(v) => { use-standard = self.current-index == 1 ? false : true }
@@ -155,7 +203,7 @@ export component SQLBrowser inherits VerticalLayout {
         columns: columns;
         rows: rows;
     }
-    if !use-standard : Matrix { columns: columns; cells <=> rows; }
+    if !use-standard : Matrix { columns: columns; cells <=> rows; current-line <=> current-line;}
 }
 
 /*

@@ -6,6 +6,7 @@ slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
 use crate::db::{open_db};
 use slintext::sqlmdl::SqliteModel;
+use slintext::sqltmdl::SqliteStandardTableModel;
 use crate::pets::*;
 
 impl From<Pet> for PetUi {
@@ -90,10 +91,10 @@ pub fn main() {
 
     main_window.on_deleteClicked({
         let model = model.clone();
-        let report_error =report_error.clone();
+        let report_error = report_error.clone();
         move |removed| {
             match model.del_value(Pet{id: removed.id.into(), ..Default::default()}) {
-                Ok(n) => true,
+                Ok(_) => true,
                 Err(err) => { report_error(format!("{}", err)); false }
             }
         }});
@@ -105,16 +106,36 @@ pub fn main() {
             filtered_model.reset();
         }});
 
+    let test_model: Rc<RefCell<Option<Rc<SqliteStandardTableModel<_>>>>> = Rc::new(RefCell::new(None));
+
     main_window.on_test_query({
         let main_window_weak = main_window.as_weak();
+        let report_error = report_error.clone();
         let shop = shop.clone();
-        move |str| {
-            match slintext::sqlmdl::standard_table_model_from(&shop.borrow(), str.as_str()) {
-                Ok((headings, rows)) => {
+        let test_model = test_model.clone();
+        move |query, update| {
+            match slintext::sqltmdl::sqlite_standard_table_model_from(shop.clone(), query.into(), update.into(), report_error.clone()) {
+                Ok((headings, rows, model)) => {
+                    test_model.replace(Some(model));
                     let main_window = main_window_weak.unwrap();
                     main_window.invoke_test_result(headings, rows);
                 }
                 Err(err) => report_error(format!("In Query handling:\n{err:}"))
+            }
+        }});
+
+    main_window.on_test_execute({
+        let report_error = report_error.clone();
+        let model = test_model.clone();
+        move |command: SharedString, line| {
+            match model.borrow().as_ref() {
+                None => {report_error("No Query defined.".to_string()); false}
+                Some(model) => {
+                    match model.execute(command.into(), line) {
+                        Ok(_) => true,
+                        Err(err) => {report_error(format!("In Query handling:\n{err:}")); false}
+                    }
+                }
             }
         }});
 

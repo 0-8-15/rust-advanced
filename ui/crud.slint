@@ -107,6 +107,7 @@ export component MainWindow inherits Window {
 
     callback test-query <=> sql-browser.query;
     callback test-result <=> sql-browser.result;
+    callback test-execute <=> sql-browser.execute;
 
     if last-error != "" : err := Rectangle {
         opacity: 1;
