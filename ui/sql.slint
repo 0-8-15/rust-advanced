@@ -57,15 +57,28 @@ export component Matrix inherits Rectangle {
         current-line = root.cells[root.active-cell.r]
     }
 
+    Flickable {
+        y: root.cell-height * 2;
+        viewport-y <=> vertical-scroll.viewport-y;
+        viewport-height: (cells.length + 2) * root.cell-height;
+        for row[row-idx] in root.cells : Rectangle {
+                y: row-idx * root.cell-height;
+                height: root.cell-height;
+
+                Text { x:0;y:0; text: row_idx; }
+        }
+    }
+
     ScrollView {
-        width: 100%;
+        x: 20px;
+        width: root.width - 20px;
         height: 100%;
-        viewport-width: 20px + cells[0].length * root.cell-width;
+        viewport-width: cells[0].length * root.cell-width;
         //viewport-height: (cells.length + 1) * root.cell-height;
 
         for heading[idx] in columns : Rectangle {
             y:0;
-            x: 20px + idx * root.cell-width;
+            x: idx * root.cell-width;
             height: root.cell-height;
             width: root.cell-width;
             Text { x:0;y:0; text: heading.title; }
@@ -73,7 +86,7 @@ export component Matrix inherits Rectangle {
 
         for cell[idx] in current-line : Rectangle {
             y: root.cell-height;
-            x: 20px + idx * root.cell-width;
+            x: idx * root.cell-width;
             height: root.cell-height;
             width: root.cell-width;
             LineEdit {
@@ -87,16 +100,16 @@ export component Matrix inherits Rectangle {
             }
         }
 
-        ScrollView {
+        vertical-scroll := ScrollView {
             y: root.cell-height * 2;
-            viewport-width: 20px + cells[0].length * root.cell-width;
+            viewport-width: cells[0].length * root.cell-width;
             viewport-height: (cells.length + 2) * root.cell-height;
 
             for row[row-idx] in root.cells : Rectangle {
                 y: row-idx * root.cell-height;
                 height: root.cell-height;
 
-                Text { x:0;y:0; text: row_idx; }
+                //Text { x:0;y:0; text: row_idx; }
 
                 for cell[col-idx] in row: Rectangle {
                     property <bool> is-active: root.active-cell.r == row-idx && root.active-cell.c == col-idx;
@@ -106,7 +119,7 @@ export component Matrix inherits Rectangle {
                     width: root.cell-width;
                     border-color: gray;
                     border-width: 1px;
-                    x: 20px + col-idx * root.cell-width;
+                    x: col-idx * root.cell-width;
 
                     Text {
                         visible: !is-active && cell.text != "";
