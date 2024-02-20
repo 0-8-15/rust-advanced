@@ -1,4 +1,4 @@
-use slint::{Model, ModelExt, SharedString, StandardListViewItem};
+use slint::{Model, ModelExt, VecModel, ModelRc, SharedString, StandardListViewItem};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -107,6 +107,18 @@ pub fn main() {
         }});
 
     let test_model: Rc<RefCell<Option<Rc<SqliteStandardTableModel<_>>>>> = Rc::new(RefCell::new(None));
+
+    fn empty_line(count: usize) -> ModelRc<StandardListViewItem>{
+        let v: Vec<StandardListViewItem> = (0..count)
+            .into_iter()
+            .map(|_| StandardListViewItem::from(""))
+            .collect();
+        ModelRc::new(VecModel::from(v))
+    }
+    fn empty_line_slint(count: i32) -> ModelRc<StandardListViewItem>{
+        empty_line(if count >= 0 {count as usize} else {0})
+    }
+    main_window.on_empty_line(empty_line_slint);
 
     main_window.on_test_query({
         let main_window_weak = main_window.as_weak();

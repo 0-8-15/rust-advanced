@@ -1,5 +1,6 @@
 import { LineEdit, ScrollView} from "std-widgets.slint";
-import { TextEdit, StandardButton, ComboBox, GroupBox, VerticalBox, StandardTableView } from "std-widgets.slint";
+import { TextEdit, Button, StandardButton, ComboBox, GroupBox, VerticalBox, StandardTableView } from "std-widgets.slint";
+import { CheckBox } from "std-widgets.slint";
 
 
 /*
@@ -43,22 +44,41 @@ pub fn query_as_array_of_array_of<T>(conn: &Connection, query: &str)
 */
 
 export component Matrix inherits Rectangle {
-    // in-out property <[[string]]> cells;
+    in property <bool> edit-on-top: true;
     in-out property <[TableColumn]> columns;
     in-out property <[[StandardListViewItem]]> cells;
 
     in-out property <[StandardListViewItem]> current-line;
+    private property <bool> form-visible: edit-on-top;
     private property <length> cell-height: 32px;
     private property <length> cell-width: 100px;
     private property <{r: int, c: int}> active-cell: { r: -1, c: -1 };
 
+    callback reset-active();
+    callback insert([StandardListViewItem]) -> bool;
+    reset-active() => {
+        set-active(-1,-1);
+        form-visible = true;
+    }
     function set-active(r: int, c: int) {
         active-cell = {r: r, c: c};
-        current-line = root.cells[root.active-cell.r]
+        current-line = root.cells[root.active-cell.r];
+        form-visible = edit-on-top;
+    }
+
+    function accept-current-line() {
+        if(active-cell.r >= 0) {
+            cells[active-cell.r] = current-line;
+            set-active(-1, -1);
+        } else {
+            if( insert(current-line) ) {
+                set-active(-1, -1);
+            }
+        }
     }
 
     Flickable {
-        y: root.cell-height * 2;
+        y: root.cell-height * (form-visible ? 2 : 1);
         viewport-y <=> vertical-scroll.viewport-y;
         viewport-height: (cells.length + 2) * root.cell-height;
         for row[row-idx] in root.cells : Rectangle {
@@ -89,19 +109,17 @@ export component Matrix inherits Rectangle {
             x: idx * root.cell-width;
             height: root.cell-height;
             width: root.cell-width;
+            visible: form-visible;
             LineEdit {
                 x:0; y:0; width: 100%; height: 100%;
                 text: cell.text;
                 edited => { cell.text = self.text; }
-                accepted => {
-                    cells[active-cell.r] = current-line;
-                    set-active(-1, -1);
-                }
+                accepted => { accept-current-line() }
             }
         }
 
         vertical-scroll := ScrollView {
-            y: root.cell-height * 2;
+            y: root.cell-height * (form-visible ? 2 : 1);
             viewport-width: cells[0].length * root.cell-width;
             viewport-height: (cells.length + 2) * root.cell-height;
 
@@ -109,10 +127,8 @@ export component Matrix inherits Rectangle {
                 y: row-idx * root.cell-height;
                 height: root.cell-height;
 
-                //Text { x:0;y:0; text: row_idx; }
-
                 for cell[col-idx] in row: Rectangle {
-                    property <bool> is-active: root.active-cell.r == row-idx && root.active-cell.c == col-idx;
+                    property <bool> is-active: !form-visible && root.active-cell.r == row-idx && root.active-cell.c == col-idx;
 
                     y:0;
                     height: root.cell-height;
@@ -141,9 +157,7 @@ export component Matrix inherits Rectangle {
                         edited => {
                             cell.text = self.text
                         }
-                        accepted => {
-                            set-active(-1, -1);
-                        }
+                        accepted => { accept-current-line() }
 
                         visible: is-active;
                         width: 100%;
@@ -163,6 +177,7 @@ export component SQLBrowser inherits VerticalLayout {
 
     property <[TableColumn]> columns;
     property <[[StandardListViewItem]]> rows;
+    callback empty-line(int) -> [StandardListViewItem];
 
     result(h, c) => {
         columns = h;
@@ -189,6 +204,13 @@ export component SQLBrowser inherits VerticalLayout {
                     text: "";
                 }
             }
+            GroupBox {
+                title: "SQL insert";
+                create := TextEdit {
+                    min-height: 5rem;
+                    text: "";
+                }
+            }
         }
         VerticalBox {
             horizontal-stretch: 0;
@@ -201,6 +223,19 @@ export component SQLBrowser inherits VerticalLayout {
                 vertical-stretch: 0;
                 kind: apply;
                 clicked => { root.execute(query.text, current-line) }
+            }
+            Button {
+                vertical-stretch: 0;
+                horizontal-stretch: 0;
+                text: "New";
+                clicked => {
+                    matrix.reset-active();
+                    matrix.current-line=root.empty-line(columns.length);
+                }
+            }
+            CheckBox{
+                text: "top mode";
+                checked <=> matrix.edit-on-top;
             }
             Rectangle {}
             selected-mode := ComboBox {
@@ -216,7 +251,15 @@ export component SQLBrowser inherits VerticalLayout {
         columns: columns;
         rows: rows;
     }
-    if !use-standard : Matrix { columns: columns; cells <=> rows; current-line <=> current-line;}
+    matrix := Matrix {
+        visible: !use-standard;
+        edit-on-top: false;
+        columns: columns; cells <=> rows;
+        current-line <=> current-line;
+        insert(line) => {
+            execute(create.text, line)
+        }
+    }
 }
 
 /*

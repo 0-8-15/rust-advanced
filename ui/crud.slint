@@ -101,13 +101,14 @@ export component MainWindow inherits Window {
             }
         }
 
-        sql-browser := SQLBrowser { col: 0; colspan: 4; row: 5; rowspan: 5; min-height: 30rem; use-standard: false; }
+        sql-browser := SQLBrowser { col: 0; colspan: 4; row: 5; rowspan: 5; min-height: 30rem; use-standard: false; empty-line(n) => { root.empty-line(n) } }
 
     }
 
     callback test-query <=> sql-browser.query;
     callback test-result <=> sql-browser.result;
     callback test-execute <=> sql-browser.execute;
+    callback empty-line(int) -> [StandardListViewItem];
 
     if last-error != "" : err := Rectangle {
         opacity: 1;

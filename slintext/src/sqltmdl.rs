@@ -112,10 +112,10 @@ where
         Ok(data)
     }
 
-    pub fn reset(&self) { // try to keep this NOT public for performance
+    pub fn reset(&self) { // try to keep this NOT public
         match self.all() {
             Ok(rows) => {
-                *self.array.borrow_mut() = rows;
+                self.array.replace(rows);
                 self.notify.reset();
             }
 	    Err(err) => {println!("Err in reset {err:?}");}
