@@ -7,6 +7,7 @@ slint::slint!(import { MainWindow } from "ui/crud.slint";);
 use crate::db::{open_db};
 use slintext::sqlmdl::SqliteModel;
 use slintext::sqltmdl::SqliteStandardTableModel;
+
 use crate::pets::*;
 
 impl From<Pet> for PetUi {
@@ -26,7 +27,7 @@ pub fn main() {
     let shop = open_db().expect("TODO: move to main HANDLEERROR could not create model file");
     let shop = Rc::new(RefCell::new(shop));
 
-     let report_error = {
+    let report_error = {
         let main_window_weak = main_window.as_weak();
         move |msg| {
             let main_window = main_window_weak.unwrap();

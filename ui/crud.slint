@@ -112,6 +112,7 @@ export component MainWindow inherits Window {
             title: "SQL Browser";
             sql-browser := SQLBrowser {
                 use-standard: false;
+                enable-control: true;
                 empty-line(n) => { root.empty-line(n) }
             }
 
@@ -120,7 +121,7 @@ export component MainWindow inherits Window {
 
     callback test-query <=> sql-browser.query;
     callback test-execute <=> sql-browser.execute;
-    callback empty-line(int) -> [StandardListViewItem];
+    pure callback empty-line(int) -> [StandardListViewItem];
 
     if last-error != "" : err := Rectangle {
         opacity: 1;

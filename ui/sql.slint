@@ -1,12 +1,11 @@
 import { LineEdit, ScrollView} from "std-widgets.slint";
-import { TextEdit, Button, StandardButton, ComboBox, GroupBox, VerticalBox, StandardTableView } from "std-widgets.slint";
+import { TextEdit, Button, StandardButton, ComboBox, GroupBox, VerticalBox, HorizontalBox, StandardTableView } from "std-widgets.slint";
 import { CheckBox } from "std-widgets.slint";
 
 export struct StandardTableResult {
     columns: [TableColumn],
     rows: [[StandardListViewItem]],
 }
-
 
 /*
 
@@ -60,10 +59,17 @@ export component Matrix inherits Rectangle {
     private property <length> cell-width: 100px;
     private property <{r: int, c: int}> active-cell: { r: -1, c: -1 };
 
+    pure callback empty-line(int) -> [StandardListViewItem];
+
+    callback reset();
     callback reset-active();
     callback insert([StandardListViewItem]) -> bool;
-    reset-active() => {
+    reset() => {
         set-active(-1,-1);
+        current-line=[];
+    }
+    reset-active() => {
+        reset();
         form-visible = true;
     }
     function set-active(r: int, c: int) {
@@ -80,6 +86,17 @@ export component Matrix inherits Rectangle {
             if( insert(current-line) ) {
                 set-active(-1, -1);
             }
+        }
+    }
+
+    TouchArea {
+        x: 0;
+        y: 0;
+        width: 20px;
+        height: root.cell-height;
+        clicked => {
+            reset-active();
+            root.current-line=root.empty-line(columns.length);
         }
     }
 
@@ -108,7 +125,12 @@ export component Matrix inherits Rectangle {
             height: root.cell-height;
             width: root.cell-width;
             visible: idx >= skip;
-            Text { x:0;y:0; text: heading.title; }
+            TouchArea {
+                Text { x:0;y:0; text: heading.title; }
+                clicked => {
+                    reset()
+                }
+            }
         }
 
         for cell[idx] in current-line : Rectangle {
@@ -179,13 +201,31 @@ export component Matrix inherits Rectangle {
 
 export component SQLBrowser inherits VerticalLayout {
     in-out property <bool> use-standard;
+    in property <bool> enable-control: false;
+
+    in-out property <string> query-text;
+    in-out property <string> update-text;
+    in-out property <string> insert-text;
+
     callback query(string, string) -> StandardTableResult;
     callback execute(string, [StandardListViewItem]) -> bool;
     callback result([TableColumn], [[StandardListViewItem]]);
 
     property <[TableColumn]> columns;
     property <[[StandardListViewItem]]> rows;
-    callback empty-line(int) -> [StandardListViewItem];
+    pure callback empty-line(int) -> [StandardListViewItem];
+
+    private property <bool> control-visible: false;
+
+
+    private property <StandardTableResult> got;
+    function query-again() {
+        got = root.query(query-text, update-text);
+        columns = got.columns;
+        rows = got.rows;
+        matrix.reset();
+    }
+    init => { query-again() }
 
     result(h, c) => {
         columns = h;
@@ -194,78 +234,105 @@ export component SQLBrowser inherits VerticalLayout {
 
     property <[StandardListViewItem]> current-line;
 
-    HorizontalLayout {
+    if enable-control : CheckBox{
         vertical-stretch: 0;
-        VerticalLayout {
-            horizontal-stretch: 1;
-            GroupBox {
-                title: "SQL query";
-                query := TextEdit {
-                    min-height: 5rem;
-                    text: "";
-                }
+        horizontal-stretch: 0;
+        text: "edit";
+        checked <=> control-visible;
+    }
+    if control-visible : GroupBox {
+        title: "SQL command";
+        vertical-stretch: 0;
+        HorizontalLayout {
+        vertical-stretch: 1;
+            command := TextEdit {
+                vertical-stretch: 1;
+                min-height: 10rem;
+                preferred-height: 100%;
+                text: "";
             }
-            GroupBox {
-                title: "SQL row update";
-                update := TextEdit {
-                    min-height: 5rem;
-                    text: "";
-                }
-            }
-            GroupBox {
-                title: "SQL insert";
-                create := TextEdit {
-                    min-height: 5rem;
-                    text: "";
-                }
-            }
-        }
-        VerticalBox {
-            horizontal-stretch: 0;
             StandardButton {
                 vertical-stretch: 0;
-                kind: ok;
-                property <StandardTableResult> got;
-                clicked => {
-                    got = root.query(query.text, update.text);
-                    columns = got.columns;
-                    rows = got.rows;
-                }
-            }
-            HorizontalLayout {
-                StandardButton {
-                vertical-stretch: 0;
                 kind: apply;
-                clicked => { root.execute(query.text, use-current-line-as-parameters.checked ? current-line : [] ) }
+                clicked => { root.execute(command.text, use-current-line-as-parameters.checked ? current-line : [] ) }
             }
             use-current-line-as-parameters := CheckBox{
                 text: "to current";
                 checked: false;
+                enabled: !use-standard;
             }
-            }
-            GroupBox {
-                title: "skip";
-                LineEdit { text: matrix.skip; accepted => { matrix.skip=self.text.to-float() } }
-            }
-            Button {
-                vertical-stretch: 0;
-                horizontal-stretch: 0;
-                text: "New";
-                clicked => {
-                    matrix.reset-active();
-                    matrix.current-line=root.empty-line(columns.length);
+        }
+    }
+    if control-visible : Rectangle {
+        border-width: 1px;
+        border-color: gray;
+        vertical-stretch: 0;
+        HorizontalBox {
+            VerticalLayout {
+                horizontal-stretch: 1;
+                GroupBox {
+                    title: "SQL query";
+                    query := TextEdit {
+                        min-height: 4rem;
+                        text <=> query-text;
+                    }
+                }
+                GroupBox {
+                    title: "SQL row update";
+                    update := TextEdit {
+                        min-height: 4rem;
+                        text <=> update-text;
+                    }
+                }
+                GroupBox {
+                    title: "SQL insert";
+                    create := TextEdit {
+                        min-height: 4rem;
+                        text <=> insert-text;
+                    }
                 }
             }
-            CheckBox{
-                text: "top mode";
-                checked <=> matrix.edit-on-top;
-            }
-            Rectangle {}
-            selected-mode := ComboBox {
-                vertical-stretch: 0;
-                model: ["standard", "matrix"];
-                current-index: root.use-standard ? 0 : 1;
-                selected(v) => { use-standard = self.current-index == 1 ? false : true }
+            VerticalBox {
+                horizontal-stretch: 0;
+                StandardButton {
+                    vertical-stretch: 0;
+                    kind: ok;
+                    clicked() => { root.query-again() }
+                }
+                HorizontalLayout{
+                    GroupBox {
+                        title: "skip";
+                        vertical-stretch: 0;
+                        LineEdit {
+                            width: 3rem;
+                            text: matrix.skip;
+                            enabled: !use-standard;
+                            accepted => { matrix.skip=self.text.to-float() }
+                        }
+                    }
+                    CheckBox{
+                        text: "top mode";
+                        enabled: !use-standard;
+                        checked <=> matrix.edit-on-top;
+                    }
+                }
+                selected-mode := ComboBox {
+                    vertical-stretch: 0;
+                    model: ["standard", "matrix"];
+                    current-index: root.use-standard ? 0 : 1;
+                    selected(v) => { use-standard = self.current-index == 1 ? false : true }
+                }
+                Rectangle {}
+                Button {
+                    vertical-stretch: 0;
+                    horizontal-stretch: 0;
+                    text: "New";
+                    enabled: !use-standard;
+                    clicked => {
+                        matrix.reset-active();
+                        matrix.current-line=root.empty-line(columns.length);
+                    }
+                }
             }
         }
     }
@@ -275,12 +342,14 @@ export component SQLBrowser inherits VerticalLayout {
         rows: rows;
     }
     matrix := Matrix {
+        vertical-stretch: 0.8;
         visible: !use-standard;
         edit-on-top: false;
         columns: columns; cells <=> rows;
         current-line <=> current-line;
+        empty-line(n) => { empty-line(n) }
         insert(line) => {
-            execute(create.text, line)
+            execute(insert-text, line)
         }
     }
 }

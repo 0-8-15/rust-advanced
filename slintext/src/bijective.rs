@@ -64,6 +64,7 @@ where
 #[test]
 fn test_bijective_model() {
     use slint::VecModel;
+    use std::rc::Rc;
     let wrapped_rc = Rc::new(VecModel::from(vec![1, 2, 3]));
     let map = BijectiveModel::new(wrapped_rc.clone(), |x| x.to_string(), |s, o| s.parse().unwrap_or_else(|_| o));
 
