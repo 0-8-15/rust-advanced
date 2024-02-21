@@ -15,7 +15,7 @@ type PetId = String;
 pub struct Pet {
     pub id: PetId,
     pub name: String,
-    pub photo: Vec<u8>,
+    pub photo: Option<Vec<u8>>,
 }
 
 pub trait PetShop {
@@ -33,7 +33,7 @@ impl Pet {
 	Self {
 	    id: Uuid::new_v4().to_string(),
 	    name: "".to_string(),
-	    photo: vec![],
+	    photo: Some(vec![]),
 	}
     }
 }
