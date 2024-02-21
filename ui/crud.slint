@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { LineEdit, Button, Slider, StandardListView, GridBox, HorizontalBox } from "std-widgets.slint";
-import { GroupBox, VerticalBox, StandardButton } from "std-widgets.slint";
+import { GroupBox, VerticalBox, StandardButton, TabWidget } from "std-widgets.slint";
 
 import { SQLBrowser } from "./sql.slint";
 
@@ -12,6 +12,8 @@ export struct PetUi {
 }
 
 export component MainWindow inherits Window {
+    min-height: 50rem;
+
     in property <[StandardListViewItem]> names-list;
     out property <int> current-item: list.current-item;
     property <PetUi> current-pet;
@@ -34,79 +36,89 @@ export component MainWindow inherits Window {
 
     in-out property <string> last-error;
 
-    GridBox {
-        Text {
-            text: "Filter prefix:";
-            vertical-alignment: center;
-            horizontal-alignment: right;
-        }
-
-        LineEdit {
-            text <=> root.prefix;
-            edited => { root.prefixEdited(self.text) }
-        }
-
-        list := StandardListView {
-            row: 1;
-            rowspan: 3;
-            colspan: 2;
-            model: root.names-list;
-        }
-
-        Text {
-            col: 2;
-            row: 1;
-            text: "Name: ";
-            vertical-alignment: center;
-            horizontal-alignment: right;
-        }
-
-        edit-name := LineEdit { text: root.current-pet.name; edited => { root.current-pet.name = self.text } }
-
-        HorizontalBox {
-            padding-left: 0;
-            padding-bottom: 0;
-            row: 4;
-            alignment: start;
-
-            create-button := Button {
-                clicked => {
-                    if( root.current-pet.id == "" ) {
-                        if( root.createClicked(current-pet) ) { clear-current-pet() }
-                    } else { clear-current-pet() }
+    TabWidget {
+        Tab {
+            title: "Pet shop";
+            GridBox {
+                Text {
+                    text: "Filter prefix:";
+                    vertical-alignment: center;
+                    horizontal-alignment: right;
                 }
 
-                text: "Create";
-            }
-            states [
-                editing when root.current-pet.id != "" : {
-                    create-button.text: "Clear";
+                LineEdit {
+                    text <=> root.prefix;
+                    edited => { root.prefixEdited(self.text) }
                 }
-                creating when root.current-pet.id == "" : {
-                    create-button.text: "Create";
+
+                list := StandardListView {
+                    row: 1;
+                    rowspan: 3;
+                    colspan: 2;
+                    model: root.names-list;
                 }
-            ]
-            Button {
-                clicked => { root.updateClicked(current-pet) }
 
-                text: "Update";
-                enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
+                Text {
+                    col: 2;
+                    row: 1;
+                    text: "Name: ";
+                    vertical-alignment: center;
+                    horizontal-alignment: right;
+                }
 
-            }
-            Button {
-                clicked => { if( root.deleteClicked(current-pet) ) { clear-current-pet() } }
+                edit-name := LineEdit { text: root.current-pet.name; edited => { root.current-pet.name = self.text } }
 
-                text: "Delete";
-                enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
+                HorizontalBox {
+                    padding-left: 0;
+                    padding-bottom: 0;
+                    row: 4;
+                    alignment: start;
+
+                    create-button := Button {
+                        clicked => {
+                            if( root.current-pet.id == "" ) {
+                                if( root.createClicked(current-pet) ) { clear-current-pet() }
+                            } else { clear-current-pet() }
+                        }
+
+                        text: "Create";
+                    }
+                    states [
+                        editing when root.current-pet.id != "" : {
+                            create-button.text: "Clear";
+                        }
+                        creating when root.current-pet.id == "" : {
+                            create-button.text: "Create";
+                        }
+                    ]
+                    Button {
+                        clicked => { root.updateClicked(current-pet) }
+
+                        text: "Update";
+                        enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
+
+                    }
+                    Button {
+                        clicked => { if( root.deleteClicked(current-pet) ) { clear-current-pet() } }
+
+                        text: "Delete";
+                        enabled: root.current-pet.id != "" && list.current-item != -1 && list.current-item < root.names-list.length;
+                    }
+                }
+
             }
         }
+        Tab {
+            title: "SQL Browser";
+            sql-browser := SQLBrowser {
+                use-standard: false;
+                empty-line(n) => { root.empty-line(n) }
+            }
 
-        sql-browser := SQLBrowser { col: 0; colspan: 4; row: 5; rowspan: 5; min-height: 30rem; use-standard: false; empty-line(n) => { root.empty-line(n) } }
-
+        }
     }
 
     callback test-query <=> sql-browser.query;
-    callback test-result <=> sql-browser.result;
     callback test-execute <=> sql-browser.execute;
     callback empty-line(int) -> [StandardListViewItem];
 

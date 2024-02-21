@@ -121,7 +121,6 @@ pub fn main() {
     main_window.on_empty_line(empty_line_slint);
 
     main_window.on_test_query({
-        let main_window_weak = main_window.as_weak();
         let report_error = report_error.clone();
         let shop = shop.clone();
         let test_model = test_model.clone();
@@ -129,10 +128,12 @@ pub fn main() {
             match slintext::sqltmdl::sqlite_standard_table_model_from(shop.clone(), query.into(), update.into(), report_error.clone()) {
                 Ok((headings, rows, model)) => {
                     test_model.replace(Some(model));
-                    let main_window = main_window_weak.unwrap();
-                    main_window.invoke_test_result(headings, rows);
+                    StandardTableResult{ columns: headings, rows: rows, }
                 }
-                Err(err) => report_error(format!("In Query handling:\n{err:}"))
+                Err(err) => {
+                    report_error(format!("In Query handling:\n{err:}"));
+                    StandardTableResult{ ..Default::default() }
+                }
             }
         }});
 
