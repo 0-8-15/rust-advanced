@@ -1,10 +1,10 @@
-use slint::{Model, ModelExt, VecModel, ModelRc, SharedString, StandardListViewItem};
+use slint::{Model, ModelExt, ModelRc, SharedString, StandardListViewItem, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
-use crate::db::{open_db};
+use crate::db::open_db;
 use slintext::sqlmdl::SqliteModel;
 use slintext::sqltmdl::SqliteStandardTableModel;
 
@@ -35,19 +35,21 @@ pub fn main() {
         }
     };
 
-    let model = Rc::new(SqliteModel::<Pet,_>::new(shop.clone(), PET_SHOP_TABLE, report_error.clone()));
+    let model = Rc::new(SqliteModel::<Pet, _>::new(
+        shop.clone(),
+        PET_SHOP_TABLE,
+        report_error.clone(),
+    ));
     let model_mapped = Rc::new(
         model
             .clone()
-            .map(|n| StandardListViewItem::from(slint::format!("{}", n.name)))
+            .map(|n| StandardListViewItem::from(slint::format!("{}", n.name))),
     );
 
-    let filtered_model = Rc::new(
-        model_mapped.clone()
-            .filter({
-                let prefix = prefix.clone();
-                move |e| e.text.starts_with(prefix.borrow().as_str())}),
-    );
+    let filtered_model = Rc::new(model_mapped.clone().filter({
+        let prefix = prefix.clone();
+        move |e| e.text.starts_with(prefix.borrow().as_str())
+    }));
 
     main_window.set_names_list(filtered_model.clone().into());
 
@@ -59,20 +61,28 @@ pub fn main() {
         let filtered_model = filtered_model.clone();
         move |idx| {
             let main_window = main_window_weak.unwrap();
-	    let row = filtered_model.unfiltered_row(idx as usize);
-	    if let Some(pet) = model.row_data(row) {
-		main_window.invoke_set_current_pet(PetUi::from(pet));
-	    }
-        }});
+            let row = filtered_model.unfiltered_row(idx as usize);
+            if let Some(pet) = model.row_data(row) {
+                main_window.invoke_set_current_pet(PetUi::from(pet));
+            }
+        }
+    });
 
     main_window.on_createClicked({
-        let report_error =report_error.clone();
+        let report_error = report_error.clone();
         let model = model.clone();
         move |new| {
             let mut entry = Pet::new();
-	    entry.name = new.name.into();
-            match model.add(entry) { Ok(_) => true, Err(err) => { report_error(format!("Create Failed\n{err:}")); false } }
-        }});
+            entry.name = new.name.into();
+            match model.add(entry) {
+                Ok(_) => true,
+                Err(err) => {
+                    report_error(format!("Create Failed\n{err:}"));
+                    false
+                }
+            }
+        }
+    });
 
     main_window.on_updateClicked({
         let main_window_weak = main_window.as_weak();
@@ -80,44 +90,52 @@ pub fn main() {
         let filtered_model = filtered_model.clone();
         move |update| {
             let main_window = main_window_weak.unwrap();
-	    let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
-	    match model.row_data(row) {
-		Some(mut entry) => {
-		    entry.name = update.name.into();
-		    model.set_row_data(row, entry);
-		}
-		None => { println!("TODO signal entry not found!") }
-	    };
-        }});
+            let row = filtered_model.unfiltered_row(main_window.get_current_item() as usize);
+            match model.row_data(row) {
+                Some(mut entry) => {
+                    entry.name = update.name.into();
+                    model.set_row_data(row, entry);
+                }
+                None => {
+                    println!("TODO signal entry not found!")
+                }
+            };
+        }
+    });
 
     main_window.on_deleteClicked({
         let model = model.clone();
         let report_error = report_error.clone();
-        move |removed| {
-            match model.del_value(Pet{id: removed.id.into(), ..Default::default()}) {
-                Ok(_) => true,
-                Err(err) => { report_error(format!("{}", err)); false }
+        move |removed| match model.del_value(Pet {
+            id: removed.id.into(),
+            ..Default::default()
+        }) {
+            Ok(_) => true,
+            Err(err) => {
+                report_error(format!("{}", err));
+                false
             }
-        }});
+        }
+    });
 
     main_window.on_prefixEdited({
         let filtered_model = filtered_model.clone();
         move |str| {
-            prefix.replace(str.into());
+            prefix.replace(str);
             filtered_model.reset();
-        }});
+        }
+    });
 
-    let test_model: Rc<RefCell<Option<Rc<SqliteStandardTableModel<_>>>>> = Rc::new(RefCell::new(None));
+    let test_model: Rc<RefCell<Option<Rc<SqliteStandardTableModel<_>>>>> =
+        Rc::new(RefCell::new(None));
 
-    fn empty_line(count: usize) -> ModelRc<StandardListViewItem>{
-        let v: Vec<StandardListViewItem> = (0..count)
-            .into_iter()
-            .map(|_| StandardListViewItem::from(""))
-            .collect();
+    fn empty_line(count: usize) -> ModelRc<StandardListViewItem> {
+        let v: Vec<StandardListViewItem> =
+            (0..count).map(|_| StandardListViewItem::from("")).collect();
         ModelRc::new(VecModel::from(v))
     }
-    fn empty_line_slint(count: i32) -> ModelRc<StandardListViewItem>{
-        empty_line(if count >= 0 {count as usize} else {0})
+    fn empty_line_slint(count: i32) -> ModelRc<StandardListViewItem> {
+        empty_line(if count >= 0 { count as usize } else { 0 })
     }
     main_window.on_empty_line(empty_line_slint);
 
@@ -125,33 +143,45 @@ pub fn main() {
         let report_error = report_error.clone();
         let shop = shop.clone();
         let test_model = test_model.clone();
-        move |query, update| {
-            match slintext::sqltmdl::sqlite_standard_table_model_from(shop.clone(), query.into(), update.into(), report_error.clone()) {
-                Ok((headings, rows, model)) => {
-                    test_model.replace(Some(model));
-                    StandardTableResult{ columns: headings, rows: rows, }
-                }
-                Err(err) => {
-                    report_error(format!("In Query handling:\n{err:}"));
-                    StandardTableResult{ ..Default::default() }
+        move |query, update| match slintext::sqltmdl::sqlite_standard_table_model_from(
+            shop.clone(),
+            query.into(),
+            update.into(),
+            report_error.clone(),
+        ) {
+            Ok((headings, rows, model)) => {
+                test_model.replace(Some(model));
+                StandardTableResult {
+                    columns: headings,
+                    rows,
                 }
             }
-        }});
+            Err(err) => {
+                report_error(format!("In Query handling:\n{err:}"));
+                StandardTableResult {
+                    ..Default::default()
+                }
+            }
+        }
+    });
 
     main_window.on_test_execute({
         let report_error = report_error.clone();
         let model = test_model.clone();
-        move |command: SharedString, line| {
-            match model.borrow().as_ref() {
-                None => {report_error("No Query defined.".to_string()); false}
-                Some(model) => {
-                    match model.execute(command.into(), line) {
-                        Ok(_) => true,
-                        Err(err) => {report_error(format!("In Query handling:\n{err:}")); false}
-                    }
-                }
+        move |command: SharedString, line| match model.borrow().as_ref() {
+            None => {
+                report_error("No Query defined.".to_string());
+                false
             }
-        }});
+            Some(model) => match model.execute(command.into(), line) {
+                Ok(_) => true,
+                Err(err) => {
+                    report_error(format!("In Query handling:\n{err:}"));
+                    false
+                }
+            },
+        }
+    });
 
     /* Finally, once everything is set up. */
     main_window.run().unwrap();

@@ -1,6 +1,6 @@
-use serde_rusqlite::*;
+use rusqlite::Connection;
 use serde_rusqlite::Result;
-use rusqlite::{Connection};
+use serde_rusqlite::*;
 
 type PetId = String;
 
@@ -15,7 +15,7 @@ struct SqlIdTable<'a> {
     pub delkey: &'a [&'a str],
 }
 
-impl <'a>SqlIdTable<'a> {
+impl<'a> SqlIdTable<'a> {
     pub fn new(
         initially: &'a [&'a str],
         create: &'a str,
@@ -25,7 +25,7 @@ impl <'a>SqlIdTable<'a> {
         delete: &'a str,
         delkey: &'a [&'a str],
     ) -> Self {
-        Self{
+        Self {
             initially,
             create,
             read,
@@ -53,28 +53,33 @@ where
     report_error: R,
 }
 
-impl <'a, T, R> SqliteModel<'a, T, R>
+impl<'a, T, R> SqliteModel<'a, T, R>
 where
     T: 'static,
     T: for<'de> serde::Deserialize<'de> + serde::Serialize,
     R: 'static + Fn(String),
 {
-
-    pub fn init(&self) /* ->Result<(), rusqlite::Error> */ {
+    pub fn init(&self) /* ->Result<(), rusqlite::Error> */
+    {
         let conn = self.connection.borrow();
         for step in self.sql.initially {
-            match conn.execute(step, () ) {
-	        Ok(_) => {} // Ok(()),
-	        Err(err) => {println!("Err {err:?}"); panic!("No Shit Sherlock!");}
-	    }
+            match conn.execute(step, ()) {
+                Ok(_) => {} // Ok(()),
+                Err(err) => {
+                    println!("Err {err:?}");
+                    panic!("No Shit Sherlock!");
+                }
+            }
         }
         self.reset();
         /* Ok(()) */
     }
 
-    pub fn new(connection: Rc<RefCell<Connection>>,
-               sql: SqlIdTable<'static>,
-               report_error: R) -> Self {
+    pub fn new(
+        connection: Rc<RefCell<Connection>>,
+        sql: SqlIdTable<'static>,
+        report_error: R,
+    ) -> Self {
         let array: Vec<T> = Vec::new();
         let result = Self {
             array: RefCell::new(array),
@@ -89,39 +94,46 @@ where
 
     fn add_obj(&self, obj: T) -> Result<()> {
         let conn = self.connection.borrow();
-	let mut stmt = match conn.prepare(self.sql.create) {
-	    Ok(stmt) => stmt,
-	    Err(err) => {println!("Err {err:?}"); return Err(Error::Rusqlite(err))}
-	};
+        let mut stmt = match conn.prepare(self.sql.create) {
+            Ok(stmt) => stmt,
+            Err(err) => {
+                println!("Err {err:?}");
+                return Err(Error::Rusqlite(err));
+            }
+        };
         match to_params_named(&obj) {
-	    Ok(params) => {
-		// let columns = columns_from_statement(&stmt);
-		match stmt.execute(
-		    params.to_slice().as_slice()) {
+            Ok(params) => {
+                // let columns = columns_from_statement(&stmt);
+                match stmt.execute(params.to_slice().as_slice()) {
                     Ok(_) => Ok(()),
-                    Err(x) => {println!("Err {x:?}");Err(Error::Rusqlite(x))}
-		}
-	    }
-	    Err(err) => {println!("Err {err:?}"); Err(err) }
-	}
+                    Err(x) => {
+                        println!("Err {x:?}");
+                        Err(Error::Rusqlite(x))
+                    }
+                }
+            }
+            Err(err) => {
+                println!("Err {err:?}");
+                Err(err)
+            }
+        }
     }
     fn update_obj(&self, obj: T) -> Result<()> {
         let conn = self.connection.borrow();
-	let mut stmt = match conn.prepare(self.sql.update) {
-	    Ok(stmt) => stmt,
-	    Err(err) => { return Err(Error::Rusqlite(err)) }
-	};
+        let mut stmt = match conn.prepare(self.sql.update) {
+            Ok(stmt) => stmt,
+            Err(err) => return Err(Error::Rusqlite(err)),
+        };
         match to_params_named(&obj) {
-	    Ok(params) => {
-		// let columns = columns_from_statement(&stmt);
-		match stmt.execute(
-		    params.to_slice().as_slice()) {
+            Ok(params) => {
+                // let columns = columns_from_statement(&stmt);
+                match stmt.execute(params.to_slice().as_slice()) {
                     Ok(_) => Ok(()),
-                    Err(err) => { Err(Error::Rusqlite(err))}
-		}
-	    }
-	    Err(err) => { Err(err) }
-	}
+                    Err(err) => Err(Error::Rusqlite(err)),
+                }
+            }
+            Err(err) => Err(err),
+        }
     }
     fn del_key(&self, name: PetId) -> Result<()> {
         match self.connection.borrow().execute(self.sql.delete, [&name]) {
@@ -131,15 +143,15 @@ where
     }
     fn get(&self, id: String) -> Option<T> {
         let conn = self.connection.borrow();
-	let mut stmt = match conn.prepare(self.sql.read) {
-	    Ok(stmt) => stmt,
-	    Err(_) => return None
-	};
-	let mut rows = stmt.query_and_then([id], from_row::<T>).unwrap(); // prove: hopefully never happens
-	match rows.next() {
-	    Some(row) => Some(row.expect("unexpected ERROR")),
-	    None => None
-	}
+        let mut stmt = match conn.prepare(self.sql.read) {
+            Ok(stmt) => stmt,
+            Err(_) => return None,
+        };
+        let mut rows = stmt.query_and_then([id], from_row::<T>).unwrap(); // prove: hopefully never happens
+        match rows.next() {
+            Some(row) => Some(row.expect("unexpected ERROR")),
+            None => None,
+        }
     }
     fn all(&self) -> Result<Vec<T>> {
         let conn = self.connection.borrow();
@@ -157,13 +169,16 @@ where
         }
     }
 
-    pub fn reset(&self) { // try to keep this NOT public for performance
+    pub fn reset(&self) {
+        // try to keep this NOT public for performance
         match self.all() {
             Ok(rows) => {
                 *self.array.borrow_mut() = rows.into();
                 self.notify.reset();
             }
-	    Err(err) => {println!("Err in reset {err:?}");}
+            Err(err) => {
+                println!("Err in reset {err:?}");
+            }
         }
     }
 
@@ -176,25 +191,31 @@ where
 
     /// Remove the row from the model
     fn delete_value(&self, value: &T) -> Result<usize> {
-/*
-        match self.connection.borrow().execute(self.sql.delete, [&name]) {
-            Ok(_) => { self.reset(); }
-	    Err(err) => {println!("Err in del {err:?}");}
-        }
-*/
+        /*
+                match self.connection.borrow().execute(self.sql.delete, [&name]) {
+                    Ok(_) => { self.reset(); }
+                Err(err) => {println!("Err in del {err:?}");}
+                }
+        */
         let conn = self.connection.borrow();
-	let mut stmt = conn.prepare(self.sql.delete)?;
+        let mut stmt = conn.prepare(self.sql.delete)?;
         // let columns = stmt.column_names();
         match to_params_named_with_fields(&value, self.sql.delkey) {
-	    Ok(params) => {
-		// let columns = columns_from_statement(&stmt);
+            Ok(params) => {
+                // let columns = columns_from_statement(&stmt);
                 match stmt.execute(params.to_slice().as_slice()) {
-                    Ok(n) => { Ok(n) }
-                    Err(x) => {println!("Err {x:?}"); Err(Error::Rusqlite(x))}
-		}
-	    }
-	    Err(err) => {println!("Err {err:?}"); Err(err)}
-	}
+                    Ok(n) => Ok(n),
+                    Err(x) => {
+                        println!("Err {x:?}");
+                        Err(Error::Rusqlite(x))
+                    }
+                }
+            }
+            Err(err) => {
+                println!("Err {err:?}");
+                Err(err)
+            }
+        }
     }
     /// Remove the row from the model
     pub fn del_value(&self, value: T) -> Result<()> {
@@ -206,37 +227,38 @@ where
     /// Remove the row from the model
     pub fn del_row(&self, index: usize) {
         let array = self.array.borrow();
-	if let Some(value) = array.get(index) {
+        if let Some(value) = array.get(index) {
             match self.delete_value(value) {
                 Ok(n) => {
                     drop(array);
                     // if n > 0 { self.notify.row_removed(index, 1); }
                     self.reset();
                 }
-	        Err(err) => {eprintln!("Err {err:?}");}
+                Err(err) => {
+                    eprintln!("Err {err:?}");
+                }
             }
         }
     }
-/*
-    /// Replace inner Vec with new data
-    pub fn set_vec(&self, new: impl Into<Vec<T>>) {
-        *self.array.borrow_mut() = new.into();
-        self.notify.reset();
-    }
+    /*
+        /// Replace inner Vec with new data
+        pub fn set_vec(&self, new: impl Into<Vec<T>>) {
+            *self.array.borrow_mut() = new.into();
+            self.notify.reset();
+        }
 
-    /// Extend the model with the content of the iterator
-    ///
-    /// Similar to [`Vec::extend`]
-    pub fn extend<I: IntoIterator<Item = T>>(&self, iter: I) {
-        let mut array = self.array.borrow_mut();
-        let old_idx = array.len();
-        array.extend(iter);
-        let count = array.len() - old_idx;
-        drop(array);
-        self.notify.row_added(old_idx, count);
-    }
-*/
-
+        /// Extend the model with the content of the iterator
+        ///
+        /// Similar to [`Vec::extend`]
+        pub fn extend<I: IntoIterator<Item = T>>(&self, iter: I) {
+            let mut array = self.array.borrow_mut();
+            let old_idx = array.len();
+            array.extend(iter);
+            let count = array.len() - old_idx;
+            drop(array);
+            self.notify.row_added(old_idx, count);
+        }
+    */
 }
 
 /*
@@ -253,7 +275,8 @@ impl <'a, T>From<Connection> for SqliteModel<'a, T> {
 }
  */
 
-impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize, R> Model for SqliteModel<'static, T, R>
+impl<T: Clone + 'static + for<'de> serde::Deserialize<'de> + serde::Serialize, R> Model
+    for SqliteModel<'static, T, R>
 where
     R: 'static + Fn(String),
 {
@@ -270,10 +293,12 @@ where
     fn set_row_data(&self, row: usize, data: Self::Data) {
         match self.update_obj(data.clone()) {
             Ok(_) => {
-                *self.array.borrow_mut().get_mut(row).unwrap()=data.into();
+                *self.array.borrow_mut().get_mut(row).unwrap() = data.into();
                 self.notify.row_changed(row)
             }
-	    Err(err) => {(self.report_error)(format!("{err:?}"));}
+            Err(err) => {
+                (self.report_error)(format!("{err:?}"));
+            }
         }
     }
 

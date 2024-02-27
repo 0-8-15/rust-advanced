@@ -1,5 +1,5 @@
 // In der separaten Crate für das Makro:
- 
+
 /*
 proc_macro::TokenStream: Dies ist der Typ, der für die Ein- und Ausgabe des Makros verwendet wird. Er repräsentiert einen Stream von Token, die der Rust-Compiler verarbeiten kann.
 quote: Ein Hilfswerkzeug aus dem quote-Crate, das verwendet wird, um Rust-Code als Token-Stream zu generieren.
@@ -8,7 +8,7 @@ syn: Dieses Crate wird verwendet, um Rust-Code zu parsen, der als Eingabe für d
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, ItemFn, LitStr};
- 
+
 /*
     #[proc_macro]: Eine Makro-Definition. Dieses Makro wird auf Rust-Elemente (wie Strukturen) angewendet und kann deren Verhalten zur Kompilierungszeit ändern.
     debug_info: Der Name des Makros.
@@ -22,7 +22,7 @@ pub fn debug_info(item: TokenStream) -> TokenStream {
        Dies ermöglicht die Bearbeitung der Strukturdefinition im Rust-Code.
     */
     let input = syn::parse_macro_input!(item as syn::ItemStruct);
- 
+
     /*
        struct_name: Speichert den Namen der Struktur.
        field_names: Erzeugt eine Liste der Feldnamen der Struktur.
@@ -31,7 +31,7 @@ pub fn debug_info(item: TokenStream) -> TokenStream {
     */
     let struct_name = &input.ident;
     let field_names = input.fields.iter().map(|f| &f.ident);
- 
+
     /*
        Hier beginnt die Verwendung von quote!,
        um den generierten Code als Token-Stream zu erstellen.
@@ -40,11 +40,11 @@ pub fn debug_info(item: TokenStream) -> TokenStream {
     let gen = quote! {
         // Der ursprüngliche Strukturcode
         #input
- 
+
         /*
             Hier wird eine Implementierung (impl) für die gegebene Struktur erzeugt,
             die eine öffentliche Methode debug_info enthält.
- 
+
             Die debug_info-Methode gibt den Namen der Struktur und die Namen aller ihrer Felder aus.
             stringify!(#struct_name): Konvertiert den Namen der Struktur in einen String zur Laufzeit.
             Das innere Makro innerhalb von quote! (gekennzeichnet durch #(...) *)
@@ -66,41 +66,41 @@ pub fn debug_info(item: TokenStream) -> TokenStream {
     */
     gen.into()
 }
- 
+
 // log entering an exiting of a function. take string as parameter and prints it on exit
- 
+
 #[proc_macro_attribute]
 // Definiert eine öffentliche Funktion `log` für ein prozedurales Makro.
 pub fn log(attrs: TokenStream, item: TokenStream) -> TokenStream {
     // `item` repräsentiert den TokenStream des Rust-Items (z.B. eine Funktion), auf das das Makro angewendet wird.
     // Hier wird es geparst als eine Funktionsdefinition (`ItemFn`).
     let input = parse_macro_input!(item as ItemFn);
- 
+
     // `attr` sollte `attrs` sein. Es ist ein Fehler im Code. Es geparst einen Literal-String (LitStr) aus den Makro-Attributen.
     // Dies ist der Teil, der überarbeitet werden muss, da `attr` nicht definiert ist.
     let arg = parse_macro_input!(attrs as LitStr);
- 
+
     // Extrahiert den String-Wert aus dem Literal-String.
     let message = arg.value();
- 
+
     // Sammelt die Eingabeparameter der Funktion.
     let inputs = &input.sig.inputs;
- 
+
     // Extrahiert den Rückgabetyp der Funktion.
     let output = &input.sig.output;
- 
+
     // Nimmt den Namen der Funktion.
     let function_name = &input.sig.ident;
- 
+
     // Nimmt den Codeblock (Körper) der Funktion.
     let block = &input.block;
- 
+
     // Sammelt die Attribute (z.B. `#[inline]`, `#[cfg(..)]`), die auf die Funktion angewendet werden.
     let attrs = &input.attrs;
- 
+
     // Extrahiert die Sichtbarkeit (z.B. `pub`) der Funktion.
     let vis = &input.vis;
- 
+
     // Erstellt den neuen Funktionscode. `quote!` wird verwendet, um den Rust-Code als TokenStream zu generieren.
     // Dieser neue Code fügt Log-Nachrichten vor und nach der Ausführung der ursprünglichen Funktion ein.
     let gen = quote! {
@@ -111,11 +111,11 @@ pub fn log(attrs: TokenStream, item: TokenStream) -> TokenStream {
             result
         }
     };
- 
+
     // Wandelt den generierten TokenStream in den erforderlichen Rückgabetyp um.
     gen.into()
 }
- 
+
 #[proc_macro_attribute]
 pub fn measure_time(_attrs: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemFn);

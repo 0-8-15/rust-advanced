@@ -1,6 +1,6 @@
+pub mod bijective;
 pub mod sqlmdl;
 pub mod sqltmdl;
-pub mod bijective;
 
 #[cfg(test)]
 mod tests {
