@@ -1,21 +1,9 @@
-workspace = { members = ["debug_info", "slintext"] }
+workspace = { members = [ "debug_info", "gui", "model", "slintext"] }
+
 [package]
 name = "rustkurs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-debug_info = { path = "debug_info" }
-slintext = { path = "slintext" }
-rusqlite = { version = "0.30.0", features = ["bundled", "functions"] }
-serde = { version = "1.0.195", features = ["derive"] }
-serde_derive = "1.0.195"
-serde_json = "1.0.111"
-serde_rusqlite = "0.34.0"
-slint = "1.4"
-uuid = { version = "1.6.1", features = ["v4", "fast-rng", "serde"] }
-
-[build-dependencies]
-slint-build = "1.4"
+gui = { path = "gui" }

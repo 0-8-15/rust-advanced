@@ -4,11 +4,11 @@ use std::rc::Rc;
 
 slint::slint!(import { MainWindow } from "ui/crud.slint";);
 
-use crate::db::open_db;
+use model::db::open_db;
 use slintext::sqlmdl::SqliteModel;
 use slintext::sqltmdl::SqliteStandardTableModel;
 
-use crate::pets::*;
+use model::pets::*;
 
 impl From<Pet> for PetUi {
     fn from(value: Pet) -> Self {
